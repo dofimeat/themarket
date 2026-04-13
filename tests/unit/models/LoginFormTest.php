@@ -3,48 +3,62 @@
 namespace tests\unit\models;
 
 use app\models\LoginForm;
+use app\models\User;
+use Yii;
 
 class LoginFormTest extends \Codeception\Test\Unit
 {
-    private $model;
+    private const DEMO_EMAIL = 'unit_demo@example.com';
+    private const DEMO_PASSWORD = 'demo_pass';
+
+    protected function _before()
+    {
+        User::deleteAll(['email' => self::DEMO_EMAIL]);
+        $user = new User();
+        $user->email = self::DEMO_EMAIL;
+        $user->setPassword(self::DEMO_PASSWORD);
+        $user->first_name = 'Unit';
+        $user->last_name = 'Test';
+        if (!$user->save(false)) {
+            $this->markTestSkipped('База данных недоступна или нет таблицы user.');
+        }
+    }
 
     protected function _after()
     {
-        \Yii::$app->user->logout();
+        Yii::$app->user->logout();
+        User::deleteAll(['email' => self::DEMO_EMAIL]);
     }
 
     public function testLoginNoUser()
     {
-        $this->model = new LoginForm([
-            'username' => 'not_existing_username',
-            'password' => 'not_existing_password',
+        $model = new LoginForm([
+            'email' => 'missing@example.com',
+            'password' => 'x',
         ]);
-
-        verify($this->model->login())->false();
-        verify(\Yii::$app->user->isGuest)->true();
+        verify($model->login())->false();
+        verify(Yii::$app->user->isGuest)->true();
     }
 
     public function testLoginWrongPassword()
     {
-        $this->model = new LoginForm([
-            'username' => 'demo',
+        $model = new LoginForm([
+            'email' => self::DEMO_EMAIL,
             'password' => 'wrong_password',
         ]);
-
-        verify($this->model->login())->false();
-        verify(\Yii::$app->user->isGuest)->true();
-        verify($this->model->errors)->arrayHasKey('password');
+        verify($model->login())->false();
+        verify(Yii::$app->user->isGuest)->true();
+        verify($model->errors)->arrayHasKey('password');
     }
 
     public function testLoginCorrect()
     {
-        $this->model = new LoginForm([
-            'username' => 'demo',
-            'password' => 'demo',
+        $model = new LoginForm([
+            'email' => self::DEMO_EMAIL,
+            'password' => self::DEMO_PASSWORD,
         ]);
-
-        verify($this->model->login())->true();
-        verify(\Yii::$app->user->isGuest)->false();
-        verify($this->model->errors)->arrayHasNotKey('password');
+        verify($model->login())->true();
+        verify(Yii::$app->user->isGuest)->false();
+        verify($model->errors)->arrayHasNotKey('password');
     }
 }

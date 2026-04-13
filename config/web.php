@@ -17,6 +17,11 @@ $config = [
             'cookieValidationKey' => 'freeroblox',
             // 'baseUrl' => '',
         ],
+        'assetManager' => [
+            // Helps when assets/CSS look "missing" due to caching or stale published bundles.
+            'appendTimestamp' => true,
+            'forceCopy' => YII_ENV_DEV,
+        ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
         ],
@@ -48,6 +53,13 @@ $config = [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'rules' => [
+                'catalog' => 'site/catalog',
+                'brands' => 'site/brands',
+                'brand/<id:\d+>' => 'site/brand',
+                'product/<id:\d+>' => 'site/product',
+                'login' => 'site/login',
+                'register' => 'site/register',
+                'profile' => 'site/profile',
             ],
         ],
         

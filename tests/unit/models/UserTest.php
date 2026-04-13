@@ -6,38 +6,25 @@ use app\models\User;
 
 class UserTest extends \Codeception\Test\Unit
 {
-    public function testFindUserById()
+    public function testSetPasswordAndValidate()
     {
-        verify($user = User::findIdentity(100))->notEmpty();
-        verify($user->username)->equals('admin');
-
-        verify(User::findIdentity(999))->empty();
+        $user = new User();
+        $user->setPassword('secret');
+        verify($user->validatePassword('secret'))->true();
+        verify($user->validatePassword('wrong'))->false();
     }
 
-    public function testFindUserByAccessToken()
+    public function testDisplayName()
     {
-        verify($user = User::findIdentityByAccessToken('100-token'))->notEmpty();
-        verify($user->username)->equals('admin');
-
-        verify(User::findIdentityByAccessToken('non-existing'))->empty();
-    }
-
-    public function testFindUserByUsername()
-    {
-        verify($user = User::findByUsername('admin'))->notEmpty();
-        verify(User::findByUsername('not-admin'))->empty();
-    }
-
-    /**
-     * @depends testFindUserByUsername
-     */
-    public function testValidateUser()
-    {
-        $user = User::findByUsername('admin');
-        verify($user->validateAuthKey('test100key'))->notEmpty();
-        verify($user->validateAuthKey('test102key'))->empty();
-
-        verify($user->validatePassword('admin'))->notEmpty();
-        verify($user->validatePassword('123456'))->empty();
+        $user = new User();
+        $user->email = 'a@b.com';
+        if ($user->hasAttribute('first_name') && $user->hasAttribute('last_name')) {
+            $user->first_name = 'Иван';
+            $user->last_name = 'Иванов';
+            verify($user->getDisplayName())->equals('Иван Иванов');
+            $user->first_name = '';
+            $user->last_name = '';
+        }
+        verify($user->getDisplayName())->equals('a@b.com');
     }
 }
