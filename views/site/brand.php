@@ -10,10 +10,33 @@ use yii\helpers\Url;
 $this->title = $brand['name'] ?? 'Бренд';
 $products = $products ?? [];
 $favoriteProductIds = array_map('intval', $favoriteProductIds ?? []);
+
+// Banner: image > color > default
+$bannerImage = trim((string) ($brand['banner_image'] ?? ''));
+$bannerColor = trim((string) ($brand['banner_color'] ?? ''));
+$logoPath = trim((string) ($brand['logo'] ?? ''));
+
+$bannerStyle = '';
+$bannerClass = 'brand-banner';
+if ($bannerImage !== '') {
+    $bannerStyle = 'background-image: url(' . Html::encode(Url::to('@web/' . ltrim($bannerImage, '/'))) . '); background-size: cover; background-position: center;';
+    $bannerClass .= ' brand-banner--image';
+} elseif ($bannerColor !== '') {
+    $bannerStyle = 'background-color: ' . Html::encode($bannerColor) . ';';
+    $bannerClass .= ' brand-banner--color';
+}
 ?>
 
-<section class="brand-banner">
-    <div class="home-wrap">
+<section class="<?= $bannerClass ?>" style="<?= $bannerStyle ?>">
+    <div class="home-wrap brand-banner-inner">
+        <?php if ($logoPath !== '' && $logoPath !== \app\models\User::DEFAULT_AVATAR): ?>
+            <img
+                src="<?= Html::encode(Url::to('@web/' . ltrim($logoPath, '/'))) ?>"
+                alt="<?= Html::encode($brand['name'] ?? '') ?>"
+                class="brand-banner-logo"
+                loading="lazy"
+            >
+        <?php endif; ?>
         <h1 class="brand-banner-title"><?= Html::encode($brand['name'] ?? '') ?></h1>
     </div>
 </section>

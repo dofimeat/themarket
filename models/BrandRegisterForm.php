@@ -21,8 +21,20 @@ class BrandRegisterForm extends Model
     /** Текущий логотип (путь от web), только для отображения. */
     public $currentLogo = '';
 
+    /** Текущий баннер (путь от web), только для отображения. */
+    public $currentBannerImage = '';
+
+    /** Текущий цвет баннера. */
+    public $bannerColor = '';
+
     /** @var UploadedFile|null */
     public $logoFile;
+
+    /** @var UploadedFile|null */
+    public $bannerImageFile;
+
+    /** @var bool Удалить баннер-картинку */
+    public $deleteBanner = false;
 
     /** @var int заполняется после успешной вставки */
     public $brandId = 0;
@@ -35,8 +47,20 @@ class BrandRegisterForm extends Model
             ['name', 'string', 'max' => 200],
             ['city', 'string', 'max' => 150],
             ['description', 'string', 'max' => 10000],
+            ['bannerColor', 'string', 'max' => 20],
+            ['deleteBanner', 'boolean'],
             [
                 'logoFile',
+                'file',
+                'skipOnEmpty' => true,
+                'extensions' => ImageUploadHelper::ALLOWED_EXTENSIONS,
+                'maxSize' => ImageUploadHelper::MAX_BYTES,
+                'checkExtensionByMimeType' => false,
+                'wrongExtension' => 'Допустимы JPG, PNG, GIF или WebP.',
+                'tooBig' => 'Файл не должен превышать 5 МБ.',
+            ],
+            [
+                'bannerImageFile',
                 'file',
                 'skipOnEmpty' => true,
                 'extensions' => ImageUploadHelper::ALLOWED_EXTENSIONS,
@@ -55,6 +79,9 @@ class BrandRegisterForm extends Model
             'description' => 'Описание',
             'city' => 'Город',
             'logoFile' => 'Логотип бренда',
+            'bannerImageFile' => 'Баннер бренда',
+            'bannerColor' => 'Цвет фона баннера',
+            'deleteBanner' => 'Удалить баннер',
         ];
     }
 
@@ -156,6 +183,8 @@ class BrandRegisterForm extends Model
         $this->city = (string) ($brand['city'] ?? '');
         $this->brandId = (int) ($brand['id'] ?? 0);
         $this->currentLogo = Brand::resolveLogoPath($brand['logo'] ?? null);
+        $this->currentBannerImage = trim((string) ($brand['banner_image'] ?? ''));
+        $this->bannerColor = trim((string) ($brand['banner_color'] ?? ''));
     }
 
     /**
@@ -164,6 +193,7 @@ class BrandRegisterForm extends Model
     public function updateBrand(int $brandId, int $userId): bool
     {
         $this->logoFile = UploadedFile::getInstance($this, 'logoFile');
+        $this->bannerImageFile = UploadedFile::getInstance($this, 'bannerImageFile');
         if (!$this->validate()) {
             return false;
         }
@@ -196,6 +226,7 @@ class BrandRegisterForm extends Model
             $update['city'] = $this->city;
         }
 
+        // Logo upload
         if ($schema->getColumn('logo') !== null && $this->logoFile !== null) {
             $logoPath = ImageUploadHelper::saveImage($this->logoFile, 'brands', 'b' . $brandId);
             if ($logoPath === null) {
@@ -209,11 +240,56 @@ class BrandRegisterForm extends Model
             }
         }
 
+        // Delete banner image
+        if ($this->deleteBanner && $schema->getColumn('banner_image') !== null) {
+            $oldBanner = trim((string) ($owner['banner_image'] ?? ''));
+            if ($oldBanner !== '') {
+                ImageUploadHelper::deleteIfUploaded($oldBanner);
+            }
+            $update['banner_image'] = null;
+            $this->currentBannerImage = '';
+        }
+
+        // Banner image upload
+        if ($schema->getColumn('banner_image') !== null && $this->bannerImageFile !== null && !$this->deleteBanner) {
+            $bannerPath = ImageUploadHelper::saveImage($this->bannerImageFile, 'brands', 'banner' . $brandId);
+            if ($bannerPath === null) {
+                $this->addError('bannerImageFile', 'Не удалось загрузить баннер.');
+                return false;
+            }
+            $update['banner_image'] = $bannerPath;
+            $oldBanner = trim((string) ($owner['banner_image'] ?? ''));
+            if ($oldBanner !== '') {
+                ImageUploadHelper::deleteIfUploaded($oldBanner);
+            }
+            // When banner image is set, clear the color
+            $update['banner_color'] = null;
+            $this->bannerColor = '';
+        }
+
+        // Banner color (only when no banner image or image was not changed)
+        if ($schema->getColumn('banner_color') !== null) {
+            $colorValue = trim((string) $this->bannerColor);
+            if ($colorValue !== '') {
+                $update['banner_color'] = $colorValue;
+                // If setting a color, keep the image only if user didn't upload new one
+            } elseif (!isset($update['banner_image'])) {
+                // Clear color only if no new image was uploaded
+                $update['banner_color'] = null;
+            }
+        }
+
         try {
             Yii::$app->db->createCommand()->update('{{%brands}}', $update, ['id' => $brandId])->execute();
             $this->brandId = $brandId;
             if (isset($update['logo'])) {
                 $this->currentLogo = (string) $update['logo'];
+            }
+            if (isset($update['banner_image'])) {
+                $this->currentBannerImage = (string) $update['banner_image'];
+            }
+            if ($this->deleteBanner) {
+                $this->currentBannerImage = '';
             }
         } catch (\Throwable $e) {
             $this->addError('name', 'Не удалось сохранить изменения.');

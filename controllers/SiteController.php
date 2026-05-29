@@ -182,6 +182,12 @@ class SiteController extends Controller
         if ($bSchema !== null && $bSchema->getColumn('city') !== null) {
             $brandCols[] = 'city';
         }
+        if ($bSchema !== null && $bSchema->getColumn('banner_image') !== null) {
+            $brandCols[] = 'banner_image';
+        }
+        if ($bSchema !== null && $bSchema->getColumn('banner_color') !== null) {
+            $brandCols[] = 'banner_color';
+        }
 
         $brand = (new Query())
             ->select($brandCols)
@@ -241,6 +247,7 @@ class SiteController extends Controller
                 'p.price',
                 'brand_name' => 'b.name',
                 'brand_logo' => 'b.logo',
+                'brand_id' => 'b.id',
             ])
             ->from(['p' => 'products'])
             ->leftJoin(['b' => 'brands'], 'b.id = p.brand_id')
@@ -612,5 +619,58 @@ class SiteController extends Controller
     public function actionAbout()
     {
         return $this->render('about');
+    }
+
+    /**
+     * Search products by name.
+     *
+     * @return string
+     */
+    public function actionSearch()
+    {
+        $q = trim((string) Yii::$app->request->get('q', ''));
+
+        $products = [];
+        $brands = [];
+        if ($q !== '') {
+            $products = (new Query())
+                ->select([
+                    'p.id',
+                    'p.name',
+                    'p.price',
+                    'image' => 'COALESCE(main_img.image, any_img.image)',
+                ])
+                ->from(['p' => 'products'])
+                ->leftJoin(
+                    ['main_img' => 'product_images'],
+                    'main_img.product_id = p.id AND main_img.is_main = 1'
+                )
+                ->leftJoin(
+                    ['any_img' => 'product_images'],
+                    "any_img.id = (
+                    SELECT MIN(pi.id)
+                    FROM product_images pi
+                    WHERE pi.product_id = p.id
+                )"
+                )
+                ->where(['p.status' => 'active'])
+                ->andWhere(['like', 'p.name', $q])
+                ->orderBy(['p.created_at' => SORT_DESC])
+                ->all();
+
+            $brands = (new Query())
+                ->select(['id', 'name', 'description', 'logo'])
+                ->from('brands')
+                ->where(['like', 'name', $q])
+                ->orderBy(['created_at' => SORT_DESC])
+                ->all();
+        }
+
+        return $this->render('search', [
+            'q' => $q,
+            'products' => $products,
+            'brands' => $brands,
+            'favoriteProductIds' => $this->favoriteProductIds(),
+        ]);
     }
 }

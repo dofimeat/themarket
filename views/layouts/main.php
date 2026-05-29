@@ -36,7 +36,24 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
                 <a href="<?= Html::encode(Url::to(['/site/about'])) ?>">О ПРОЕКТЕ</a>
             </nav>
             <div class="home-actions">
-                <a href="#" class="home-action-icon" aria-label="Поиск">◯</a>
+                <div class="home-search-wrap">
+                    <form class="home-search-form" action="<?= Html::encode(Url::to(['/site/search'])) ?>" method="get">
+                        <input
+                            type="text"
+                            name="q"
+                            class="home-search-input"
+                            placeholder="Поиск товаров..."
+                            value="<?= Html::encode(Yii::$app->request->get('q', '')) ?>"
+                            autocomplete="off"
+                        >
+                        <button type="submit" class="home-search-submit" aria-label="Найти">
+                            <img src="<?= Html::encode(Url::to('@web/images/Search Streamline Guidance – Free.svg')) ?>" alt="" width="20" height="20" decoding="async">
+                        </button>
+                    </form>
+                    <a href="#" class="home-action-icon home-search-toggle" aria-label="Поиск">
+                        <img src="<?= Html::encode(Url::to('@web/images/Search Streamline Guidance – Free.svg')) ?>" alt="Поиск" width="28" height="28" decoding="async">
+                    </a>
+                </div>
                 <?php if (Yii::$app->user->isGuest): ?>
                     <a href="<?= Html::encode(Url::to(['/site/login'])) ?>" class="home-action-icon" aria-label="Профиль">
                         <img src="<?= Html::encode(Url::to('@web/images/user.svg')) ?>" alt="" width="28" height="28" decoding="async">
@@ -94,6 +111,25 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
 </div>
 
 <?php $this->endBody() ?>
+<script>
+(function(){
+    var toggle = document.querySelector('.home-search-toggle');
+    var wrap = document.querySelector('.home-search-wrap');
+    if (!toggle || !wrap) return;
+    toggle.addEventListener('click', function(e){
+        e.preventDefault();
+        wrap.classList.toggle('is-open');
+        if (wrap.classList.contains('is-open')) {
+            wrap.querySelector('.home-search-input').focus();
+        }
+    });
+    document.addEventListener('click', function(e){
+        if (wrap.classList.contains('is-open') && !wrap.contains(e.target)) {
+            wrap.classList.remove('is-open');
+        }
+    });
+})();
+</script>
 </body>
 </html>
 <?php $this->endPage() ?>

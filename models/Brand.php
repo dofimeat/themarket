@@ -11,6 +11,8 @@ use yii\db\ActiveRecord;
  * @property string|null $name
  * @property string|null $description
  * @property string|null $logo
+ * @property string|null $banner_image
+ * @property string|null $banner_color
  * @property string|null $city
  * @property string|null $created_at
  *
@@ -28,7 +30,8 @@ class Brand extends ActiveRecord
         return [
             [['name'], 'string', 'max' => 200],
             [['description'], 'string'],
-            [['logo', 'city'], 'string', 'max' => 255],
+            [['logo', 'banner_image', 'city'], 'string', 'max' => 255],
+            [['banner_color'], 'string', 'max' => 20],
             [['user_id'], 'integer'],
         ];
     }

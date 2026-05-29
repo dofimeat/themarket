@@ -54,6 +54,7 @@ $config = [
             'showScriptName' => false,
             'rules' => [
                 'catalog' => 'site/catalog',
+                'search' => 'site/search',
                 'brands' => 'site/brands',
                 'brand/<id:\d+>' => 'site/brand',
                 'product/<id:\d+>' => 'site/product',

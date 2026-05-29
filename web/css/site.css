@@ -76,6 +76,150 @@ a {
     display: flex;
     gap: 14px;
     font-size: 24px;
+    align-items: center;
+}
+
+/* Header search */
+.home-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.home-search-form {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    overflow: hidden;
+    transition: width 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+    background: #FAFAFA;
+    border-bottom: 1px solid #000;
+}
+
+.home-search-wrap.is-open .home-search-form {
+    width: 320px;
+    opacity: 1;
+    padding-right: 8px;
+}
+
+.home-search-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: 'IBM Plex Serif', serif;
+    font-size: 16px;
+    padding: 8px 4px;
+    width: 100%;
+    color: #000;
+}
+
+.home-search-input::placeholder {
+    color: #999;
+}
+
+.home-search-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    flex-shrink: 0;
+}
+
+.home-search-submit img {
+    width: 20px;
+    height: 20px;
+    opacity: 0.6;
+}
+
+.home-search-submit:hover img {
+    opacity: 1;
+}
+
+.home-search-toggle {
+    position: relative;
+    z-index: 1;
+}
+
+/* Search results page */
+.search-count {
+    font-weight: 400;
+    font-size: 16px;
+    color: #999;
+    margin-left: 8px;
+}
+
+.search-empty {
+    text-align: center;
+    padding: 60px 0;
+    color: #666;
+    font-size: 16px;
+}
+
+.search-empty p {
+    margin: 0 0 8px;
+}
+
+.search-empty a {
+    color: #000;
+    text-decoration: underline;
+}
+
+.search-section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 32px 0 16px;
+    color: #000;
+}
+
+.search-section-title:first-child {
+    margin-top: 0;
+}
+
+.search-brands-section {
+    margin-bottom: 16px;
+}
+
+.search-brands-grid {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.search-brand-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    border: 1px solid #D9D9D9;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #000;
+    transition: border-color 0.15s;
+}
+
+.search-brand-card:hover {
+    border-color: #000;
+}
+
+.search-brand-logo {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.search-brand-name {
+    font-family: "IBM Plex Serif", serif;
+    font-size: 16px;
 }
 
 .hero {
@@ -964,16 +1108,31 @@ a {
 
 .product-centered .product-brand-box-centered {
     width: 100%;
-    max-width: 220px; /* To match the select and button */
+    max-width: 220px;
     height: 54px;
     border: 1px solid #D9D9D9;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
     margin-bottom: 48px;
     font-family: Arial, sans-serif;
     font-size: 13px;
     color: #000;
+    transition: border-color 0.15s;
+}
+
+.product-centered a.product-brand-box-centered:hover {
+    border-color: #999;
+    color: #000;
+}
+
+.product-centered .product-brand-logo {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    border-radius: 4px;
+    flex-shrink: 0;
 }
 
 .product-centered .product-section {
@@ -1172,6 +1331,41 @@ a {
     align-items: flex-end;
     padding-bottom: 64px;
     position: relative;
+    transition: background-color 0.3s;
+}
+
+.brand-banner--image {
+    background: none;
+}
+
+.brand-banner--image::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+}
+
+.brand-banner-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.brand-banner-logo {
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+
+.brand-banner--image .brand-banner-title,
+.brand-banner--image .brand-banner-logo {
+    color: #fff;
+    filter: drop-shadow(0 1px 4px rgba(0,0,0,0.5));
 }
 
 .brand-banner-title {
@@ -1606,6 +1800,83 @@ a {
     margin: 0;
     font-size: 12px;
     color: #999999;
+}
+
+/* Banner section in edit-brand form */
+.seller-brand-banner-section {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.seller-brand-banner-upload {
+    flex: 1 1 280px;
+}
+
+.seller-brand-banner-preview {
+    width: 100%;
+    max-width: 320px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #D9D9D9;
+    margin-bottom: 8px;
+}
+
+.seller-brand-banner-placeholder {
+    width: 100%;
+    max-width: 320px;
+    height: 120px;
+    border-radius: 8px;
+    border: 1px dashed #D9D9D9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.seller-brand-banner-color-section {
+    flex: 0 1 220px;
+}
+
+.seller-brand-color-picker-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.seller-brand-color-picker {
+    width: 48px;
+    height: 36px;
+    border: 1px solid #D9D9D9;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 2px;
+    background: #fff;
+}
+
+.seller-brand-input--color {
+    width: 100px;
+    font-family: monospace;
+    font-size: 14px;
+    text-transform: lowercase;
+}
+
+.seller-brand-delete-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: #cc3333;
+    cursor: pointer;
+}
+
+.seller-brand-delete-banner input[type="checkbox"] {
+    accent-color: #cc3333;
 }
 
 .profile-settings-input--file,

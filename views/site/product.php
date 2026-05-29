@@ -156,9 +156,23 @@ JS
                     <button class="btn product-add" type="button">Добавить в корзину</button>
                 </div>
 
-                <div class="product-brand-box-centered">
-                    <?= Html::encode($brandName !== '' ? $brandName : 'RetroMakers') ?>
-                </div>
+                <?php
+                $brandId = (int) ($product['brand_id'] ?? 0);
+                $brandLogo = trim((string) ($product['brand_logo'] ?? ''));
+                $brandUrl = $brandId > 0 ? Url::to(['brand', 'id' => $brandId]) : '#';
+                ?>
+                <?php if ($brandId > 0): ?>
+                    <a href="<?= Html::encode($brandUrl) ?>" class="product-brand-box-centered" style="text-decoration:none;">
+                        <?php if ($brandLogo !== '' && $brandLogo !== 'images/defolt-avatar.png'): ?>
+                            <img src="<?= Html::encode(Url::to('@web/' . ltrim($brandLogo, '/'))) ?>" alt="<?= Html::encode($brandName) ?>" class="product-brand-logo">
+                        <?php endif; ?>
+                        <span><?= Html::encode($brandName !== '' ? $brandName : 'Бренд') ?></span>
+                    </a>
+                <?php else: ?>
+                    <div class="product-brand-box-centered">
+                        <?= Html::encode($brandName !== '' ? $brandName : 'RetroMakers') ?>
+                    </div>
+                <?php endif; ?>
 
                 <div class="product-section">
                     <div class="product-section-title">Описание:</div>
