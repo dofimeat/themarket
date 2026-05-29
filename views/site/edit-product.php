@@ -1,8 +1,9 @@
 <?php
 
 /** @var yii\web\View $this */
-/** @var app\models\ProductAddForm $model */
+/** @var app\models\ProductEditForm $model */
 /** @var array<string, mixed> $brand */
+/** @var string $productStatus */
 
 use app\widgets\Alert;
 use yii\bootstrap5\ActiveForm;
@@ -11,12 +12,13 @@ use yii\helpers\Url;
 
 $brandName = (string) ($brand['name'] ?? '');
 $brandLogo = trim((string) ($brand['logo'] ?? ''));
+$productId = (int) $model->productId;
 
-$this->title = 'Добавить товар';
+$this->title = 'Редактировать товар';
 
-$newFilesId = 'seller-add-new-images';
+$newFilesId = 'seller-edit-new-images';
 $this->registerJsFile('@web/js/seller-product-sizes.js', ['depends' => [\yii\web\YiiAsset::class]]);
-$this->registerJs('initSellerProductSizes({formName: "ProductAddForm"});', \yii\web\View::POS_END);
+$this->registerJs('initSellerProductSizes({formName: "ProductEditForm"});', \yii\web\View::POS_END);
 $this->registerJs(<<<JS
 (function () {
     var newInput = document.getElementById('{$newFilesId}');
@@ -33,9 +35,8 @@ $this->registerJs(<<<JS
                 img.alt = '';
                 var radio = document.createElement('input');
                 radio.type = 'radio';
-                radio.name = 'ProductAddForm[mainImageId]';
+                radio.name = 'ProductEditForm[mainImageId]';
                 radio.value = 'new_' + idx;
-                if (idx === 0) radio.checked = true;
                 radio.title = 'Сделать главным';
                 wrap.appendChild(img);
                 wrap.appendChild(radio);
@@ -51,27 +52,81 @@ JS
     <?= Alert::widget() ?>
 
     <a href="<?= Html::encode(Url::to(['seller/brand-dashboard'])) ?>" class="seller-add-back">← Панель бренда</a>
-    <h1 class="seller-add-title">Добавить товар</h1>
+    <div class="seller-edit-head">
+        <h1 class="seller-add-title">Редактировать товар</h1>
+        <span class="seller-edit-id">ID: <?= $productId ?></span>
+    </div>
 
     <?php $form = ActiveForm::begin([
-        'id' => 'seller-add-product-form',
+        'id' => 'seller-edit-product-form',
         'options' => [
             'class' => 'seller-add-form',
             'enctype' => 'multipart/form-data',
         ],
         'fieldConfig' => [
-            'template' => "{input}\n{error}",
+            'template' => "{label}\n{input}\n{error}",
+            'labelOptions' => ['class' => 'seller-add-field-label'],
             'inputOptions' => ['class' => 'form-control seller-add-input'],
             'errorOptions' => ['class' => 'seller-add-field-error'],
         ],
     ]); ?>
 
+    <?= Html::activeHiddenInput($model, 'productId') ?>
+
     <div class="seller-add-layout seller-edit-layout">
         <div class="seller-add-col seller-add-col--media seller-edit-col--media">
             <div class="seller-edit-panel card-like">
                 <div class="seller-add-section-label">Фотографии</div>
+
+                <?php if ($model->existingImages !== []): ?>
+                    <div class="seller-edit-gallery" role="list">
+                        <?php foreach ($model->existingImages as $img): ?>
+                            <?php
+                            $imgId = $img instanceof \app\models\ProductImage ? (int) $img->id : (int) ($img['id'] ?? 0);
+                            $src = $img instanceof \app\models\ProductImage
+                                ? trim((string) $img->image)
+                                : trim((string) ($img['image'] ?? ''));
+                            $isMain = (int) ($model->mainImageId ?? 0) === $imgId
+                                || ((string) $model->mainImageId === (string) $imgId);
+                            ?>
+                            <div class="seller-edit-gallery-item" role="listitem">
+                                <?php if ($src !== ''): ?>
+                                    <img
+                                        src="<?= Html::encode(Url::to('@web/' . ltrim($src, '/'))) ?>"
+                                        alt=""
+                                        class="seller-edit-gallery-img"
+                                        loading="lazy"
+                                        decoding="async"
+                                    >
+                                <?php else: ?>
+                                    <div class="seller-edit-gallery-img seller-edit-gallery-img--empty"></div>
+                                <?php endif; ?>
+                                <label class="seller-edit-gallery-main">
+                                    <input
+                                        type="radio"
+                                        name="ProductEditForm[mainImageId]"
+                                        value="<?= $imgId ?>"
+                                        <?= $isMain ? 'checked' : '' ?>
+                                    >
+                                    <span>Главное</span>
+                                </label>
+                                <label class="seller-edit-gallery-delete">
+                                    <input
+                                        type="checkbox"
+                                        name="ProductEditForm[deleteImageIds][]"
+                                        value="<?= $imgId ?>"
+                                    >
+                                    <span>Удалить</span>
+                                </label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <p class="seller-edit-hint">Нет загруженных фото — добавьте ниже.</p>
+                <?php endif; ?>
+
                 <div class="seller-edit-upload-block">
-                    <label class="seller-add-section-label" for="<?= Html::encode($newFilesId) ?>">Загрузите одно или несколько фото</label>
+                    <label class="seller-add-section-label" for="<?= Html::encode($newFilesId) ?>">Добавить фото</label>
                     <?= Html::activeFileInput($model, 'newImageFiles', [
                         'id' => $newFilesId,
                         'class' => 'form-control seller-add-input',
@@ -80,14 +135,22 @@ JS
                     ]) ?>
                     <?= Html::error($model, 'newImageFiles', ['class' => 'seller-add-field-error']) ?>
                     <div id="seller-edit-new-preview" class="seller-edit-new-preview"></div>
-                    <p class="seller-edit-hint">Отметьте «Главное» у нужного превью после выбора файлов.</p>
+                    <p class="seller-edit-hint">Можно выбрать несколько файлов. Для новых фото отметьте «Главное» после выбора.</p>
                 </div>
             </div>
         </div>
 
         <div class="seller-add-col seller-add-col--fields">
-            <?= $form->field($model, 'name')->textInput(['placeholder' => 'Название товара', 'autocomplete' => 'off']) ?>
-            <?= $form->field($model, 'price')->textInput(['placeholder' => 'Цена', 'inputmode' => 'decimal', 'autocomplete' => 'off']) ?>
+            <?= $form->field($model, 'name', ['template' => "{input}\n{error}"])->textInput([
+                'placeholder' => 'Название товара',
+                'autocomplete' => 'off',
+            ])->label(false) ?>
+
+            <?= $form->field($model, 'price', ['template' => "{input}\n{error}"])->textInput([
+                'placeholder' => 'Цена',
+                'inputmode' => 'decimal',
+                'autocomplete' => 'off',
+            ])->label(false) ?>
 
             <div class="seller-edit-sizes-block card-like">
                 <div class="seller-edit-sizes-head">
@@ -98,12 +161,12 @@ JS
                     <?php foreach ($model->sizes as $i => $sizeRow): ?>
                         <div class="seller-edit-size-row">
                             <?= Html::hiddenInput(
-                                "ProductAddForm[sizes][{$i}][id]",
+                                "ProductEditForm[sizes][{$i}][id]",
                                 $sizeRow['id'] ?? '',
                                 ['data-size-id' => true]
                             ) ?>
                             <?= Html::textInput(
-                                "ProductAddForm[sizes][{$i}][size]",
+                                "ProductEditForm[sizes][{$i}][size]",
                                 $sizeRow['size'] ?? '',
                                 [
                                     'class' => 'form-control seller-add-input',
@@ -113,12 +176,13 @@ JS
                             ) ?>
                             <?= Html::input(
                                 'number',
-                                "ProductAddForm[sizes][{$i}][quantity]",
+                                "ProductEditForm[sizes][{$i}][quantity]",
                                 $sizeRow['quantity'] ?? 1,
                                 [
                                     'class' => 'form-control seller-add-input seller-edit-qty',
                                     'min' => 0,
                                     'step' => 1,
+                                    'placeholder' => 'Кол-во',
                                     'data-size-qty' => true,
                                 ]
                             ) ?>
@@ -142,7 +206,10 @@ JS
 
             <div class="seller-add-desc-block">
                 <div class="seller-add-section-label">Описание</div>
-                <?= $form->field($model, 'description')->textarea([
+                <?= $form->field($model, 'description', [
+                    'template' => "{input}\n{error}",
+                    'labelOptions' => ['class' => 'visually-hidden'],
+                ])->textarea([
                     'rows' => 10,
                     'class' => 'form-control seller-add-textarea',
                     'placeholder' => 'Описание товара',
@@ -150,10 +217,21 @@ JS
             </div>
 
             <div class="seller-edit-actions">
-                <?= Html::submitButton('Добавить товар', ['class' => 'seller-add-submit seller-edit-submit-primary']) ?>
+                <?= Html::submitButton('Сохранить изменения', ['class' => 'seller-add-submit seller-edit-submit-primary']) ?>
+                <a class="seller-edit-link" href="<?= Html::encode(Url::to(['/site/product', 'id' => $productId])) ?>" target="_blank" rel="noopener">Открыть на сайте</a>
             </div>
         </div>
     </div>
 
     <?php ActiveForm::end(); ?>
+
+    <div class="seller-edit-archive-wrap">
+        <?php $isActive = ($productStatus ?? 'active') === 'active'; ?>
+        <?= Html::beginForm(['seller/toggle-product-status', 'id' => $productId], 'post', ['class' => 'seller-edit-archive-form']) ?>
+            <?= Html::submitButton(
+                $isActive ? 'Перенести в архив' : 'Вернуть в активные',
+                ['class' => 'seller-edit-archive-btn']
+            ) ?>
+        <?= Html::endForm() ?>
+    </div>
 </div>

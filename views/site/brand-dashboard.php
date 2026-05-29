@@ -37,7 +37,7 @@ $this->title = 'Панель управления — ' . $name;
                 <p class="seller-dash-sub">Панель управления</p>
             </div>
         </div>
-        <a class="seller-dash-btn-add" href="<?= Html::encode(Url::to(['/site/add-product'])) ?>">+ Добавить товар</a>
+        <a class="seller-dash-btn-add" href="<?= Html::encode(Url::to(['seller/add-product'])) ?>">+ Добавить товар</a>
     </header>
 
     <section class="seller-dash-stats" aria-label="Показатели">
@@ -62,7 +62,7 @@ $this->title = 'Панель управления — ' . $name;
     <section class="seller-dash-info card-like">
         <div class="seller-dash-info-head">
             <h2 class="seller-dash-section-title">Информация о бренде</h2>
-            <a class="seller-dash-link-edit" href="<?= Html::encode(Url::to(['/site/edit-brand'])) ?>">Редактировать</a>
+            <a class="seller-dash-link-edit" href="<?= Html::encode(Url::to(['seller/edit-brand'])) ?>">Редактировать</a>
         </div>
         <div class="seller-dash-info-grid">
             <div class="seller-dash-info-col">
@@ -104,11 +104,11 @@ $this->title = 'Панель управления — ' . $name;
             <div class="seller-dash-tabs" role="tablist">
                 <a
                     class="seller-dash-tab <?= $listTab === 'active' ? 'is-active' : '' ?>"
-                    href="<?= Html::encode(Url::to(['/site/brand-dashboard', 'list' => 'active'])) ?>"
+                    href="<?= Html::encode(Url::to(['seller/brand-dashboard', 'list' => 'active'])) ?>"
                 >Все</a>
                 <a
                     class="seller-dash-tab <?= $listTab === 'archive' ? 'is-active' : '' ?>"
-                    href="<?= Html::encode(Url::to(['/site/brand-dashboard', 'list' => 'archive'])) ?>"
+                    href="<?= Html::encode(Url::to(['seller/brand-dashboard', 'list' => 'archive'])) ?>"
                 >Архив</a>
             </div>
         </div>
@@ -135,7 +135,7 @@ $this->title = 'Панель управления — ' . $name;
                         <div class="seller-dash-pcard-body">
                             <div class="seller-dash-pcard-title"><?= Html::encode($p['name'] ?? '') ?></div>
                             <div class="seller-dash-pcard-id">ID: <?= (int) ($p['id'] ?? 0) ?></div>
-                            <a class="seller-dash-pcard-edit" href="<?= Html::encode(Url::to(['/site/product', 'id' => (int) ($p['id'] ?? 0)])) ?>">Редактировать</a>
+                            <a class="seller-dash-pcard-edit" href="<?= Html::encode(Url::to(['seller/edit-product', 'id' => (int) ($p['id'] ?? 0)])) ?>">Редактировать</a>
                         </div>
                     </article>
                 <?php endforeach; ?>

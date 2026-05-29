@@ -18,56 +18,135 @@ $isFavorite = (bool) ($isFavorite ?? false);
 $favoriteProductIds = array_map('intval', $favoriteProductIds ?? []);
 
 $brandName = trim((string) ($product['brand_name'] ?? ''));
-$brandLogo = trim((string) ($product['brand_logo'] ?? ''));
+$hasMultipleImages = count($images) > 1;
+
+if ($hasMultipleImages) {
+    $this->registerJs(<<<JS
+(function () {
+    var el = document.getElementById('productCarousel');
+    if (!el || !window.bootstrap || !window.bootstrap.Carousel) {
+        return;
+    }
+
+    var carousel = bootstrap.Carousel.getOrCreateInstance(el, {
+        interval: false,
+        ride: false,
+        touch: true,
+        wrap: true
+    });
+
+    var startX = 0;
+    var isDragging = false;
+    var dragThreshold = 50;
+
+    el.addEventListener('dragstart', function (e) { e.preventDefault(); });
+
+    el.addEventListener('pointerdown', function (e) {
+        if (e.pointerType !== 'mouse' || e.button !== 0) return;
+        if (e.target.closest('.carousel-control-prev, .carousel-control-next, .carousel-indicators, .product-media-favorite')) return;
+        isDragging = true;
+        startX = e.clientX;
+        el.setPointerCapture(e.pointerId);
+    });
+
+    el.addEventListener('pointerup', function (e) {
+        if (!isDragging) return;
+        isDragging = false;
+        if (e.target.closest('.carousel-control-prev, .carousel-control-next, .carousel-indicators, .product-media-favorite')) {
+            el.releasePointerCapture(e.pointerId);
+            return;
+        }
+        var distance = e.clientX - startX;
+        el.releasePointerCapture(e.pointerId);
+        if (Math.abs(distance) < dragThreshold) return;
+        if (distance > 0) carousel.prev();
+        else carousel.next();
+    });
+
+    el.addEventListener('pointercancel', function () { isDragging = false; });
+})();
+JS
+    );
+}
 ?>
 
 <div class="home-wrap product-view-wrap">
     <section class="product-centered">
         <div class="product-main">
-            <!-- Image Section -->
             <div class="product-media">
-                <div id="productCarousel" class="carousel slide product-carousel" data-bs-ride="false" data-bs-touch="true">
-                    <div class="carousel-inner">
-                        <?php foreach ($images as $idx => $src): ?>
-                            <div class="carousel-item <?= $idx === 0 ? 'active' : '' ?>">
-                                <img
-                                    class="product-photo"
-                                    src="<?= Html::encode(Url::to('@web/' . ltrim((string) $src, '/'))) ?>"
-                                    alt="<?= Html::encode((string) ($product['name'] ?? '')) ?>"
-                                    loading="<?= $idx === 0 ? 'eager' : 'lazy' ?>"
-                                    draggable="false"
-                                >
-                            </div>
-                        <?php endforeach; ?>
+                <div id="productCarousel" class="carousel slide product-carousel" data-bs-touch="true">
+                    <div class="product-carousel-stage">
+                        <div class="carousel-inner">
+                            <?php foreach ($images as $idx => $src): ?>
+                                <div class="carousel-item <?= $idx === 0 ? 'active' : '' ?>">
+                                    <img
+                                        class="product-photo d-block w-100"
+                                        src="<?= Html::encode(Url::to('@web/' . ltrim((string) $src, '/'))) ?>"
+                                        alt="<?= Html::encode((string) ($product['name'] ?? '')) ?>"
+                                        loading="<?= $idx === 0 ? 'eager' : 'lazy' ?>"
+                                        draggable="false"
+                                    >
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <?php if ($hasMultipleImages): ?>
+                            <button class="carousel-control-prev product-carousel-control" type="button" data-bs-target="#productCarousel" data-bs-slide="prev" aria-label="Предыдущее фото">
+                                <span class="product-carousel-arrow product-carousel-arrow--prev" aria-hidden="true"></span>
+                            </button>
+                            <button class="carousel-control-next product-carousel-control" type="button" data-bs-target="#productCarousel" data-bs-slide="next" aria-label="Следующее фото">
+                                <span class="product-carousel-arrow product-carousel-arrow--next" aria-hidden="true"></span>
+                            </button>
+                        <?php endif; ?>
+
+                        <div class="product-media-favorite">
+                            <?= $this->render('_favorite_btn', [
+                                'productId' => (int) ($product['id'] ?? 0),
+                                'isFavorite' => $isFavorite,
+                                'extraClass' => 'fav-btn--sm fav-btn--on-gallery',
+                            ]) ?>
+                        </div>
                     </div>
-                    <div class="product-indicators">
-                        <?php foreach ($images as $idx => $_): ?>
-                            <button
-                                type="button"
-                                data-bs-target="#productCarousel"
-                                data-bs-slide-to="<?= (int) $idx ?>"
-                                class="<?= $idx === 0 ? 'active' : '' ?>"
-                                <?= $idx === 0 ? 'aria-current="true"' : '' ?>
-                                aria-label="Slide <?= (int) $idx + 1 ?>"
-                            ></button>
-                        <?php endforeach; ?>
-                    </div>
+
+                    <?php if ($hasMultipleImages): ?>
+                        <div class="carousel-indicators product-indicators">
+                            <?php foreach ($images as $idx => $_): ?>
+                                <button
+                                    type="button"
+                                    data-bs-target="#productCarousel"
+                                    data-bs-slide-to="<?= (int) $idx ?>"
+                                    class="<?= $idx === 0 ? 'active' : '' ?>"
+                                    <?= $idx === 0 ? 'aria-current="true"' : '' ?>
+                                    aria-label="Фото <?= (int) $idx + 1 ?>"
+                                ></button>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <!-- Info Section -->
             <div class="product-info-wrap">
                 <h1 class="product-name"><?= Html::encode((string) ($product['name'] ?? '')) ?></h1>
-                <div class="product-price"><?= number_format((float) ($product['price'] ?? 0), 0, '', ' ') ?>Р</div>
+                <div class="product-price"><?= number_format((float) ($product['price'] ?? 0), 0, '', ' ') ?> ₽</div>
 
                 <div class="product-field">
                     <div class="product-label">Размер:</div>
-                    <select class="form-select product-select" aria-label="Размер">
+                    <select class="form-select product-select" aria-label="Размер" name="size">
                         <?php if (empty($sizes)): ?>
-                            <option selected>—</option>
+                            <option value="" selected>—</option>
                         <?php else: ?>
-                            <?php foreach ($sizes as $size): ?>
-                                <option><?= Html::encode((string) $size) ?></option>
+                            <?php foreach ($sizes as $sizeRow): ?>
+                                <?php
+                                $sizeLabel = trim((string) ($sizeRow['size'] ?? ''));
+                                if ($sizeLabel === '') {
+                                    continue;
+                                }
+                                $qty = (int) ($sizeRow['quantity'] ?? 0);
+                                $inStock = $qty > 0;
+                                ?>
+                                <option value="<?= Html::encode($sizeLabel) ?>" <?= $inStock ? '' : 'disabled' ?>>
+                                    <?= Html::encode($sizeLabel) ?><?= $inStock ? '' : ' (нет в наличии)' ?>
+                                </option>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </select>
@@ -75,13 +154,6 @@ $brandLogo = trim((string) ($product['brand_logo'] ?? ''));
 
                 <div class="product-actions-stack">
                     <button class="btn product-add" type="button">Добавить в корзину</button>
-                    <div class="product-favorite-below">
-                        <?= $this->render('_favorite_btn', [
-                            'productId' => (int) ($product['id'] ?? 0),
-                            'isFavorite' => $isFavorite,
-                            'extraClass' => 'fav-btn--lg',
-                        ]) ?>
-                    </div>
                 </div>
 
                 <div class="product-brand-box-centered">
@@ -107,14 +179,13 @@ $brandLogo = trim((string) ($product['brand_logo'] ?? ''));
             </div>
         </div>
 
-        <!-- Recommendations Section -->
         <?php if (!empty($recommended)): ?>
             <div class="product-reco" style="width: 100%; margin-top: 120px; border-top: 1px solid #F0F0F0; padding-top: 64px;">
                 <div class="product-reco-title" style="font-size: 14px; color: #999; margin-bottom: 32px;">Вам может понравиться</div>
                 <div class="product-grid">
                     <?php foreach ($recommended as $rec): ?>
                         <div class="product-card-wrap product-card-wrap--reco">
-                            <a class="product-card" href="<?= Html::encode(Url::to(['/site/product', 'id' => (int) $rec['id']])) ?>" style="text-decoration: none; color: inherit;">
+                            <a class="product-card" href="<?= Html::encode(Url::to(['product', 'id' => (int) $rec['id']])) ?>" style="text-decoration: none; color: inherit;">
                                 <?php if (!empty($rec['image'])): ?>
                                     <img
                                         src="<?= Html::encode(Url::to('@web/' . ltrim($rec['image'], '/'))) ?>"

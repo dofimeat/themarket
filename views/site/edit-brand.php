@@ -18,7 +18,7 @@ $this->title = 'Редактирование бренда';
 
         <?php $form = ActiveForm::begin([
             'id' => 'edit-brand-form',
-            'action' => Url::to(['/site/edit-brand']),
+            'action' => Url::to(['seller/edit-brand']),
             'options' => ['class' => 'seller-brand-form'],
             'fieldConfig' => [
                 'template' => "{label}\n{input}\n{error}",
@@ -44,7 +44,7 @@ $this->title = 'Редактирование бренда';
 
         <div class="seller-brand-actions">
             <?= Html::submitButton('Сохранить изменения', ['class' => 'seller-brand-submit']) ?>
-            <a class="seller-brand-back" href="<?= Html::encode(Url::to(['/site/brand-dashboard'])) ?>">Назад в панель</a>
+            <a class="seller-brand-back" href="<?= Html::encode(Url::to(['seller/brand-dashboard'])) ?>">Назад в панель</a>
         </div>
 
         <?php ActiveForm::end(); ?>

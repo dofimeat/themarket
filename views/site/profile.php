@@ -62,9 +62,9 @@ $navClass = static function (string $name) use ($tab): string {
         </div>
         <div class="profile-top-right">
             <?php if ($sellerBrand !== null): ?>
-                <a href="<?= Html::encode(Url::to(['/site/brand-dashboard'])) ?>" class="profile-btn-outline">Управление брендом</a>
+                <a href="<?= Html::encode(Url::to(['seller/brand-dashboard'])) ?>" class="profile-btn-outline">Управление брендом</a>
             <?php else: ?>
-                <a href="<?= Html::encode(Url::to(['/site/register-brand'])) ?>" class="profile-btn-outline">Стать продавцом</a>
+                <a href="<?= Html::encode(Url::to(['seller/register-brand'])) ?>" class="profile-btn-outline">Стать продавцом</a>
             <?php endif; ?>
             <?= Html::beginForm(['/site/logout'], 'post', ['class' => 'profile-logout-form']) ?>
             <button type="submit" class="profile-icon-btn" aria-label="Выйти" title="Выйти">

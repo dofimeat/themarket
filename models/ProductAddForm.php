@@ -2,6 +2,7 @@
 
 namespace app\models;
 
+use app\models\traits\ProductFormTrait;
 use Yii;
 use yii\base\Model;
 use yii\db\Expression;
@@ -9,31 +10,48 @@ use yii\helpers\FileHelper;
 use yii\web\UploadedFile;
 
 /**
- * Добавление товара продавцом (форма + сохранение в БД и файл).
+ * Добавление товара: несколько размеров и изображений.
  */
 class ProductAddForm extends Model
 {
+    use ProductFormTrait;
+
     public $name;
     public $price;
-    public $size;
     public $description;
 
-    /** @var UploadedFile|null */
-    public $imageFile;
+    /** @var int|string|null */
+    public $mainImageId = 'new_0';
+
+    /** @var array<int, array<string, mixed>> */
+    public $sizes = [['id' => '', 'size' => '', 'quantity' => 1]];
+
+    /** @var UploadedFile[]|null */
+    public $newImageFiles;
+
+    public function init()
+    {
+        parent::init();
+        if ($this->sizes === []) {
+            $this->sizes = [['id' => '', 'size' => '', 'quantity' => 1]];
+        }
+    }
 
     public function rules()
     {
         return [
-            [['name', 'price', 'size', 'description'], 'trim'],
-            [['name', 'price', 'size', 'description'], 'required'],
+            [['name', 'price', 'description'], 'trim'],
+            [['name', 'price', 'description'], 'required'],
             ['name', 'string', 'max' => 255],
-            ['size', 'string', 'max' => 64],
             ['description', 'string', 'max' => 20000],
             ['price', 'validatePrice'],
+            ['mainImageId', 'safe'],
+            ['sizes', 'validateSizes'],
             [
-                ['imageFile'],
+                ['newImageFiles'],
                 'file',
                 'skipOnEmpty' => false,
+                'maxFiles' => 10,
                 'extensions' => ['png', 'jpg', 'jpeg', 'webp', 'gif'],
                 'maxSize' => 8 * 1024 * 1024,
                 'wrongExtension' => 'Допустимы изображения: PNG, JPG, WEBP, GIF.',
@@ -41,53 +59,30 @@ class ProductAddForm extends Model
         ];
     }
 
-    public function validatePrice($attribute): void
-    {
-        $n = $this->parsePriceValue();
-        if ($n === null || $n <= 0) {
-            $this->addError($attribute, 'Укажите корректную цену.');
-        }
-    }
-
     public function attributeLabels()
     {
         return [
             'name' => 'Название',
             'price' => 'Цена',
-            'size' => 'Размер',
             'description' => 'Описание',
-            'imageFile' => 'Изображение',
+            'newImageFiles' => 'Изображения',
         ];
     }
 
-    public function parsePriceValue(): ?float
-    {
-        $raw = trim((string) $this->price);
-        if ($raw === '') {
-            return null;
-        }
-        $normalized = str_replace([' ', "\xc2\xa0"], '', $raw);
-        $normalized = str_replace(',', '.', $normalized);
-        if (!is_numeric($normalized)) {
-            return null;
-        }
-        return round((float) $normalized, 2);
-    }
-
     /**
-     * Создаёт товар, главное фото и один размер на складе.
-     *
-     * @return int|null id товара или null при ошибке
+     * @return int|null id товара
      */
     public function saveProduct(int $brandId): ?int
     {
+        $this->newImageFiles = UploadedFile::getInstances($this, 'newImageFiles');
+
         if (!$this->validate()) {
             return null;
         }
 
-        $file = UploadedFile::getInstance($this, 'imageFile');
-        if ($file === null || $file->getHasError()) {
-            $this->addError('imageFile', 'Загрузите изображение товара.');
+        $files = $this->newImageFiles ?? [];
+        if ($files === []) {
+            $this->addError('newImageFiles', 'Загрузите хотя бы одно изображение.');
             return null;
         }
 
@@ -98,87 +93,109 @@ class ProductAddForm extends Model
         }
 
         $db = Yii::$app->db;
-        $pSchema = $db->getTableSchema('{{%products}}', true);
-        if ($pSchema === null) {
-            $this->addError('name', 'Таблица товаров недоступна.');
-            return null;
-        }
-
-        $productRow = [];
-        if ($pSchema->getColumn('name') !== null) {
-            $productRow['name'] = $this->name;
-        }
-        if ($pSchema->getColumn('description') !== null) {
-            $productRow['description'] = $this->description;
-        }
-        if ($pSchema->getColumn('price') !== null) {
-            $productRow['price'] = $priceVal;
-        }
-        if ($pSchema->getColumn('brand_id') !== null) {
-            $productRow['brand_id'] = $brandId;
-        }
-        if ($pSchema->getColumn('status') !== null) {
-            $productRow['status'] = 'active';
-        }
-        if ($pSchema->getColumn('created_at') !== null) {
-            $productRow['created_at'] = new Expression('NOW()');
-        }
-
-        $relativePath = null;
         $transaction = $db->beginTransaction();
+
         try {
-            $db->createCommand()->insert('{{%products}}', $productRow)->execute();
-            $productId = (int) $db->getLastInsertID();
-
-            $dir = Yii::getAlias('@webroot/uploads/products');
-            FileHelper::createDirectory($dir, 0755);
-            $safeExt = strtolower($file->extension ?: 'jpg');
-            $basename = 'p' . $productId . '_' . bin2hex(random_bytes(4)) . '.' . $safeExt;
-            $fullPath = $dir . DIRECTORY_SEPARATOR . $basename;
-            if (!$file->saveAs($fullPath, false)) {
-                throw new \RuntimeException('saveAs failed');
+            $product = new Product();
+            $product->brand_id = $brandId;
+            $product->name = $this->name;
+            $product->description = $this->description;
+            $product->price = $priceVal;
+            $product->status = Product::STATUS_ACTIVE;
+            if ($product->hasAttribute('created_at')) {
+                $product->created_at = new Expression('NOW()');
             }
-            $relativePath = 'uploads/products/' . $basename;
-
-            $imgSchema = $db->getTableSchema('{{%product_images}}', true);
-            if ($imgSchema !== null) {
-                $imgRow = ['product_id' => $productId];
-                if ($imgSchema->getColumn('image') !== null) {
-                    $imgRow['image'] = $relativePath;
-                }
-                if ($imgSchema->getColumn('is_main') !== null) {
-                    $imgRow['is_main'] = 1;
-                }
-                if ($imgSchema->getColumn('sort_order') !== null) {
-                    $imgRow['sort_order'] = 0;
-                }
-                $db->createCommand()->insert('{{%product_images}}', $imgRow)->execute();
+            if (!$product->save(false)) {
+                throw new \RuntimeException('product save failed');
             }
 
-            $szSchema = $db->getTableSchema('{{%product_sizes}}', true);
-            if ($szSchema !== null) {
-                $szRow = ['product_id' => $productId];
-                if ($szSchema->getColumn('size') !== null) {
-                    $szRow['size'] = $this->size;
-                }
-                if ($szSchema->getColumn('quantity') !== null) {
-                    $szRow['quantity'] = 99;
-                }
-                $db->createCommand()->insert('{{%product_sizes}}', $szRow)->execute();
-            }
+            $productId = (int) $product->id;
+            $newImageIds = $this->saveNewImages($productId, $files);
+            $this->syncSizes($productId);
+            $this->applyMainImage($productId, $newImageIds);
 
             $transaction->commit();
             return $productId;
         } catch (\Throwable $e) {
             $transaction->rollBack();
-            if ($relativePath !== null) {
-                $abs = Yii::getAlias('@webroot/' . ltrim($relativePath, '/'));
-                if (is_file($abs)) {
-                    @unlink($abs);
-                }
-            }
-            $this->addError('name', 'Не удалось сохранить товар. Проверьте структуру таблиц products, product_images, product_sizes.');
+            $this->addError('name', 'Не удалось сохранить товар.');
             return null;
         }
+    }
+
+    /**
+     * @param UploadedFile[] $files
+     * @return int[]
+     */
+    private function saveNewImages(int $productId, array $files): array
+    {
+        $dir = Yii::getAlias('@webroot/uploads/products');
+        FileHelper::createDirectory($dir, 0755);
+        $newIds = [];
+
+        foreach ($files as $idx => $file) {
+            if ($file->getHasError()) {
+                continue;
+            }
+            $safeExt = strtolower($file->extension ?: 'jpg');
+            $basename = 'p' . $productId . '_' . bin2hex(random_bytes(4)) . '.' . $safeExt;
+            $fullPath = $dir . DIRECTORY_SEPARATOR . $basename;
+            if (!$file->saveAs($fullPath, false)) {
+                throw new \RuntimeException('image save failed');
+            }
+
+            $image = new ProductImage();
+            $image->product_id = $productId;
+            $image->image = 'uploads/products/' . $basename;
+            $image->is_main = $idx === 0 ? 1 : 0;
+            if (ProductImage::hasSortOrderColumn()) {
+                $image->sort_order = $idx;
+            }
+            if (!$image->save(false)) {
+                throw new \RuntimeException('image db save failed');
+            }
+            $newIds[] = (int) $image->id;
+        }
+
+        return $newIds;
+    }
+
+    private function syncSizes(int $productId): void
+    {
+        foreach ($this->normalizeSizesInput() as $row) {
+            if ($row['size'] === '') {
+                continue;
+            }
+            $sizeModel = new ProductSize();
+            $sizeModel->product_id = $productId;
+            $sizeModel->size = $row['size'];
+            $sizeModel->quantity = $row['quantity'];
+            $sizeModel->save(false);
+        }
+    }
+
+    /**
+     * @param int[] $newImageIds
+     */
+    private function applyMainImage(int $productId, array $newImageIds): void
+    {
+        $schema = ProductImage::getTableSchema();
+        if ($schema === null || $schema->getColumn('is_main') === null || $newImageIds === []) {
+            return;
+        }
+
+        $mainRaw = $this->mainImageId;
+        $mainId = 0;
+        if (is_string($mainRaw) && str_starts_with($mainRaw, 'new_')) {
+            $idx = (int) substr($mainRaw, 4);
+            $mainId = $newImageIds[$idx] ?? $newImageIds[0];
+        } elseif ((int) $mainRaw > 0) {
+            $mainId = (int) $mainRaw;
+        } else {
+            $mainId = $newImageIds[0];
+        }
+
+        ProductImage::updateAll(['is_main' => 0], ['product_id' => $productId]);
+        ProductImage::updateAll(['is_main' => 1], ['product_id' => $productId, 'id' => $mainId]);
     }
 }
