@@ -2,11 +2,13 @@
 
 namespace app\models;
 
+use app\helpers\ImageUploadHelper;
 use Yii;
 use yii\base\Model;
+use yii\web\UploadedFile;
 
 /**
- * Настройки аккаунта: данные из User, пароль и уведомления по желанию.
+ * Настройки аккаунта: данные из User, пароль, уведомления, аватар.
  */
 class ProfileSettingsForm extends Model
 {
@@ -22,6 +24,9 @@ class ProfileSettingsForm extends Model
     public $notify_news = 1;
     public $notify_orders = 1;
 
+    /** @var UploadedFile|null */
+    public $avatarFile;
+
     /** @var User */
     public $user;
 
@@ -36,13 +41,23 @@ class ProfileSettingsForm extends Model
                 return ((int) (bool) $v) ? 1 : 0;
             }],
             [['notify_news', 'notify_orders'], 'in', 'range' => [0, 1]],
+            [
+                'avatarFile',
+                'file',
+                'skipOnEmpty' => true,
+                'extensions' => ImageUploadHelper::ALLOWED_EXTENSIONS,
+                'maxSize' => ImageUploadHelper::MAX_BYTES,
+                'checkExtensionByMimeType' => false,
+                'wrongExtension' => 'Допустимы JPG, PNG, GIF или WebP.',
+                'tooBig' => 'Файл не должен превышать 5 МБ.',
+            ],
         ];
     }
 
     public function scenarios()
     {
         $scenarios = parent::scenarios();
-        $scenarios[self::SCENARIO_DEFAULT] = ['first_name', 'last_name', 'new_password', 'notify_news', 'notify_orders'];
+        $scenarios[self::SCENARIO_DEFAULT] = ['first_name', 'last_name', 'new_password', 'notify_news', 'notify_orders', 'avatarFile'];
         return $scenarios;
     }
 
@@ -55,6 +70,7 @@ class ProfileSettingsForm extends Model
             'new_password' => 'Новый пароль',
             'notify_news' => 'Новости и акции',
             'notify_orders' => 'Статус заказов',
+            'avatarFile' => 'Аватар',
         ];
     }
 
@@ -78,9 +94,12 @@ class ProfileSettingsForm extends Model
 
     public function save(): bool
     {
+        $this->avatarFile = UploadedFile::getInstance($this, 'avatarFile');
+
         if (!$this->validate() || $this->user === null) {
             return false;
         }
+
         if ($this->user->hasAttribute('first_name')) {
             $this->user->setAttribute('first_name', $this->first_name ?? '');
         }
@@ -95,6 +114,23 @@ class ProfileSettingsForm extends Model
         }
         if ($this->new_password !== null && trim((string) $this->new_password) !== '') {
             $this->user->setPassword((string) $this->new_password);
+        }
+
+        if ($this->avatarFile !== null && $this->user->hasAttribute('avatar')) {
+            $saved = ImageUploadHelper::saveImage(
+                $this->avatarFile,
+                'avatars',
+                'u' . (int) $this->user->id
+            );
+            if ($saved === null) {
+                $this->addError('avatarFile', 'Не удалось загрузить изображение.');
+                return false;
+            }
+            $old = trim((string) $this->user->getAttribute('avatar'));
+            $this->user->setAttribute('avatar', $saved);
+            if ($old !== '' && $old !== User::DEFAULT_AVATAR) {
+                ImageUploadHelper::deleteIfUploaded($old);
+            }
         }
 
         if (!$this->user->save(false)) {

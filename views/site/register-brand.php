@@ -18,7 +18,10 @@ $this->title = 'Регистрация бренда';
 
         <?php $form = ActiveForm::begin([
             'id' => 'register-brand-form',
-            'options' => ['class' => 'seller-brand-form'],
+            'options' => [
+                'class' => 'seller-brand-form',
+                'enctype' => 'multipart/form-data',
+            ],
             'fieldConfig' => [
                 'template' => "{label}\n{input}\n{error}",
                 'labelOptions' => ['class' => 'seller-brand-label'],
@@ -26,6 +29,12 @@ $this->title = 'Регистрация бренда';
                 'errorOptions' => ['class' => 'seller-brand-error'],
             ],
         ]); ?>
+
+        <?= $this->render('_brand_logo_upload', [
+            'form' => $form,
+            'model' => $model,
+            'previewId' => 'register-brand-logo-preview',
+        ]) ?>
 
         <?= $form->field($model, 'name')->textInput([
             'autofocus' => true,
@@ -50,3 +59,18 @@ $this->title = 'Регистрация бренда';
         <?php ActiveForm::end(); ?>
     </div>
 </div>
+<?php
+$this->registerJs(<<<'JS'
+(function () {
+    var input = document.getElementById('register-brand-logo-preview-file');
+    var preview = document.getElementById('register-brand-logo-preview');
+    if (!input || !preview) return;
+    input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        preview.src = URL.createObjectURL(file);
+    });
+})();
+JS
+);
+?>

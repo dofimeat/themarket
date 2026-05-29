@@ -2,10 +2,12 @@
 
 namespace app\models;
 
+use app\helpers\ImageUploadHelper;
 use Yii;
 use yii\base\Model;
 use yii\db\Expression;
 use yii\db\Query;
+use yii\web\UploadedFile;
 
 /**
  * Регистрация бренда продавцом (название, описание, город).
@@ -15,6 +17,12 @@ class BrandRegisterForm extends Model
     public $name;
     public $description;
     public $city;
+
+    /** Текущий логотип (путь от web), только для отображения. */
+    public $currentLogo = '';
+
+    /** @var UploadedFile|null */
+    public $logoFile;
 
     /** @var int заполняется после успешной вставки */
     public $brandId = 0;
@@ -27,6 +35,16 @@ class BrandRegisterForm extends Model
             ['name', 'string', 'max' => 200],
             ['city', 'string', 'max' => 150],
             ['description', 'string', 'max' => 10000],
+            [
+                'logoFile',
+                'file',
+                'skipOnEmpty' => true,
+                'extensions' => ImageUploadHelper::ALLOWED_EXTENSIONS,
+                'maxSize' => ImageUploadHelper::MAX_BYTES,
+                'checkExtensionByMimeType' => false,
+                'wrongExtension' => 'Допустимы JPG, PNG, GIF или WebP.',
+                'tooBig' => 'Файл не должен превышать 5 МБ.',
+            ],
         ];
     }
 
@@ -36,11 +54,25 @@ class BrandRegisterForm extends Model
             'name' => 'Название бренда',
             'description' => 'Описание',
             'city' => 'Город',
+            'logoFile' => 'Логотип бренда',
         ];
+    }
+
+    /**
+     * @return string|null путь от web
+     */
+    private function saveLogoUpload(int $brandId): ?string
+    {
+        if ($this->logoFile === null) {
+            return null;
+        }
+
+        return ImageUploadHelper::saveImage($this->logoFile, 'brands', 'b' . $brandId);
     }
 
     public function save(int $userId): bool
     {
+        $this->logoFile = UploadedFile::getInstance($this, 'logoFile');
         if (!$this->validate()) {
             return false;
         }
@@ -78,7 +110,7 @@ class BrandRegisterForm extends Model
             $row['user_id'] = $userId;
         }
         if ($schema->getColumn('logo') !== null && !array_key_exists('logo', $row)) {
-            $row['logo'] = null;
+            $row['logo'] = User::DEFAULT_AVATAR;
         }
         if ($schema->getColumn('created_at') !== null) {
             $row['created_at'] = new Expression('NOW()');
@@ -90,6 +122,15 @@ class BrandRegisterForm extends Model
         } catch (\Throwable $e) {
             $this->addError('name', 'Не удалось сохранить бренд. Выполните SQL из sql/themarketdb_brand_seller.sql или проверьте таблицу brands.');
             return false;
+        }
+
+        if ($schema->getColumn('logo') !== null && $this->logoFile !== null) {
+            $logoPath = $this->saveLogoUpload($this->brandId);
+            if ($logoPath === null) {
+                $this->addError('logoFile', 'Не удалось загрузить логотип.');
+                return false;
+            }
+            Yii::$app->db->createCommand()->update('{{%brands}}', ['logo' => $logoPath], ['id' => $this->brandId])->execute();
         }
 
         $user = User::findIdentity($userId);
@@ -114,6 +155,7 @@ class BrandRegisterForm extends Model
         $this->description = (string) ($brand['description'] ?? '');
         $this->city = (string) ($brand['city'] ?? '');
         $this->brandId = (int) ($brand['id'] ?? 0);
+        $this->currentLogo = Brand::resolveLogoPath($brand['logo'] ?? null);
     }
 
     /**
@@ -121,6 +163,7 @@ class BrandRegisterForm extends Model
      */
     public function updateBrand(int $brandId, int $userId): bool
     {
+        $this->logoFile = UploadedFile::getInstance($this, 'logoFile');
         if (!$this->validate()) {
             return false;
         }
@@ -153,9 +196,25 @@ class BrandRegisterForm extends Model
             $update['city'] = $this->city;
         }
 
+        if ($schema->getColumn('logo') !== null && $this->logoFile !== null) {
+            $logoPath = ImageUploadHelper::saveImage($this->logoFile, 'brands', 'b' . $brandId);
+            if ($logoPath === null) {
+                $this->addError('logoFile', 'Не удалось загрузить логотип.');
+                return false;
+            }
+            $update['logo'] = $logoPath;
+            $oldLogo = trim((string) ($owner['logo'] ?? ''));
+            if ($oldLogo !== '' && $oldLogo !== User::DEFAULT_AVATAR) {
+                ImageUploadHelper::deleteIfUploaded($oldLogo);
+            }
+        }
+
         try {
             Yii::$app->db->createCommand()->update('{{%brands}}', $update, ['id' => $brandId])->execute();
             $this->brandId = $brandId;
+            if (isset($update['logo'])) {
+                $this->currentLogo = (string) $update['logo'];
+            }
         } catch (\Throwable $e) {
             $this->addError('name', 'Не удалось сохранить изменения.');
             return false;

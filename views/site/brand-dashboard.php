@@ -10,6 +10,7 @@
 /** @var string $historyText */
 /** @var string $yearFounded */
 
+use app\models\Brand;
 use app\widgets\Alert;
 use yii\helpers\Html;
 use yii\helpers\Url;
@@ -17,6 +18,8 @@ use yii\helpers\Url;
 $name = (string) ($brand['name'] ?? '');
 $city = trim((string) ($brand['city'] ?? ''));
 $logo = trim((string) ($brand['logo'] ?? ''));
+$logoPath = Brand::resolveLogoPath($logo !== '' ? $logo : null);
+$logoUrl = Url::to('@web/' . ltrim($logoPath, '/'));
 
 $this->title = 'Панель управления — ' . $name;
 ?>
@@ -25,13 +28,9 @@ $this->title = 'Панель управления — ' . $name;
 
     <header class="seller-dash-header card-like">
         <div class="seller-dash-header-main">
-            <?php if ($logo !== ''): ?>
-                <div class="seller-dash-logo-wrap">
-                    <img src="<?= Html::encode(Url::to('@web/' . ltrim($logo, '/'))) ?>" alt="" class="seller-dash-logo-img" width="72" height="72" loading="lazy" decoding="async">
-                </div>
-            <?php else: ?>
-                <div class="seller-dash-logo-fallback" aria-hidden="true"></div>
-            <?php endif; ?>
+            <div class="seller-dash-logo-wrap">
+                <img src="<?= Html::encode($logoUrl) ?>" alt="" class="seller-dash-logo-img" width="72" height="72" loading="lazy" decoding="async">
+            </div>
             <div class="seller-dash-header-text">
                 <h1 class="seller-dash-brand-name"><?= Html::encode($name) ?></h1>
                 <p class="seller-dash-sub">Панель управления</p>

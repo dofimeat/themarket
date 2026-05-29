@@ -18,6 +18,7 @@ use yii\web\IdentityInterface;
  * @property string|null $auth_key
  * @property string $first_name
  * @property string $last_name
+ * @property string|null $avatar
  * @property int|null $notify_news
  * @property int|null $notify_orders
  * @property string|null $created_at
@@ -26,6 +27,9 @@ class User extends ActiveRecord implements IdentityInterface
 {
     /** Роль новых пользователей при регистрации (должна быть допустима в колонке `role`). */
     public const ROLE_DEFAULT = 'user';
+
+    /** Путь от корня web для новых пользователей без своей аватарки. */
+    public const DEFAULT_AVATAR = 'images/defolt-avatar.png';
 
     public static function tableName()
     {
@@ -64,6 +68,9 @@ class User extends ActiveRecord implements IdentityInterface
         if ($this->hasAttribute('first_name') && $this->hasAttribute('last_name')) {
             $common[] = [['first_name', 'last_name'], 'string', 'max' => 100];
             $common[] = [['first_name', 'last_name'], 'default', 'value' => ''];
+        }
+        if ($this->hasAttribute('avatar')) {
+            $common[] = ['avatar', 'string', 'max' => 255];
         }
         return array_merge($required, $common);
     }
@@ -223,6 +230,21 @@ class User extends ActiveRecord implements IdentityInterface
             $this->generateAuthKey();
         }
         return true;
+    }
+
+    /**
+     * Относительный путь к аватарке (от web).
+     */
+    public function getAvatarPath(): string
+    {
+        if ($this->hasAttribute('avatar')) {
+            $custom = trim((string) $this->getAttribute('avatar'));
+            if ($custom !== '') {
+                return $custom;
+            }
+        }
+
+        return self::DEFAULT_AVATAR;
     }
 
     public function getDisplayName()

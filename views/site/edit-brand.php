@@ -3,6 +3,7 @@
 /** @var yii\web\View $this */
 /** @var app\models\BrandRegisterForm $model */
 
+use app\models\User;
 use app\widgets\Alert;
 use yii\bootstrap5\ActiveForm;
 use yii\bootstrap5\Html;
@@ -19,7 +20,10 @@ $this->title = 'Редактирование бренда';
         <?php $form = ActiveForm::begin([
             'id' => 'edit-brand-form',
             'action' => Url::to(['seller/edit-brand']),
-            'options' => ['class' => 'seller-brand-form'],
+            'options' => [
+                'class' => 'seller-brand-form',
+                'enctype' => 'multipart/form-data',
+            ],
             'fieldConfig' => [
                 'template' => "{label}\n{input}\n{error}",
                 'labelOptions' => ['class' => 'seller-brand-label'],
@@ -27,6 +31,12 @@ $this->title = 'Редактирование бренда';
                 'errorOptions' => ['class' => 'seller-brand-error'],
             ],
         ]); ?>
+
+        <?= $this->render('_brand_logo_upload', [
+            'form' => $form,
+            'model' => $model,
+            'previewId' => 'edit-brand-logo-preview',
+        ]) ?>
 
         <?= $form->field($model, 'name')->textInput([
             'autocomplete' => 'organization',
@@ -50,3 +60,18 @@ $this->title = 'Редактирование бренда';
         <?php ActiveForm::end(); ?>
     </div>
 </div>
+<?php
+$this->registerJs(<<<'JS'
+(function () {
+    var input = document.getElementById('edit-brand-logo-preview-file');
+    var preview = document.getElementById('edit-brand-logo-preview');
+    if (!input || !preview) return;
+    input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        preview.src = URL.createObjectURL(file);
+    });
+})();
+JS
+);
+?>

@@ -11,6 +11,7 @@
 /** @var int[] $favoriteProductIds */
 /** @var array<string, mixed>|null $sellerBrand */
 
+use app\models\User;
 use app\widgets\Alert;
 use yii\bootstrap5\ActiveForm;
 use yii\bootstrap5\Html;
@@ -48,6 +49,9 @@ if ($identity !== null) {
 $recommendedProducts = $recommendedProducts ?? [];
 $sellerBrand = $sellerBrand ?? null;
 
+$avatarPath = $identity !== null ? $identity->getAvatarPath() : User::DEFAULT_AVATAR;
+$avatarUrl = Url::to('@web/' . ltrim($avatarPath, '/'));
+
 $navClass = static function (string $name) use ($tab): string {
     return $name === $tab ? 'profile-nav-link is-active' : 'profile-nav-link';
 };
@@ -57,7 +61,17 @@ $navClass = static function (string $name) use ($tab): string {
 
     <div class="profile-top card-like">
         <div class="profile-top-left">
-            <div class="profile-avatar" aria-hidden="true"></div>
+            <div class="profile-avatar">
+                <img
+                    src="<?= Html::encode($avatarUrl) ?>"
+                    alt=""
+                    class="profile-avatar-img"
+                    width="56"
+                    height="56"
+                    loading="lazy"
+                    decoding="async"
+                >
+            </div>
             <span class="profile-name"><?= Html::encode($displayName) ?></span>
         </div>
         <div class="profile-top-right">
@@ -214,7 +228,10 @@ $navClass = static function (string $name) use ($tab): string {
                 <?php $form = ActiveForm::begin([
                     'id' => 'profile-settings-form',
                     'action' => Url::to(['/site/profile', 'tab' => 'settings']),
-                    'options' => ['class' => 'profile-settings-form'],
+                    'options' => [
+                        'class' => 'profile-settings-form',
+                        'enctype' => 'multipart/form-data',
+                    ],
                     'fieldConfig' => [
                         'template' => "{label}\n{input}\n{error}",
                         'labelOptions' => ['class' => 'profile-settings-label'],
@@ -222,6 +239,30 @@ $navClass = static function (string $name) use ($tab): string {
                         'errorOptions' => ['class' => 'profile-settings-error'],
                     ],
                 ]); ?>
+
+                <div class="profile-settings-section">
+                    <h3 class="profile-settings-section-title">Аватар</h3>
+                    <div class="profile-avatar-upload">
+                        <img
+                            src="<?= Html::encode(Url::to('@web/' . ltrim($settingsForm->user->getAvatarPath(), '/'))) ?>"
+                            alt=""
+                            class="profile-avatar-upload-preview"
+                            width="80"
+                            height="80"
+                            id="profile-avatar-preview"
+                            loading="lazy"
+                            decoding="async"
+                        >
+                        <?= $form->field($settingsForm, 'avatarFile', [
+                            'options' => ['class' => 'profile-settings-field profile-settings-field--full profile-avatar-file-field'],
+                        ])->fileInput([
+                            'class' => 'profile-settings-input profile-settings-input--file',
+                            'accept' => 'image/jpeg,image/png,image/gif,image/webp',
+                            'id' => 'profile-avatar-file',
+                        ]) ?>
+                        <p class="profile-avatar-hint">JPG, PNG, GIF или WebP, до 5 МБ</p>
+                    </div>
+                </div>
 
                 <div class="profile-settings-section">
                     <h3 class="profile-settings-section-title">Личные данные</h3>
@@ -282,6 +323,22 @@ $navClass = static function (string $name) use ($tab): string {
                     <?= Html::submitButton('Сохранить изменения', ['class' => 'profile-settings-submit']) ?>
                 </div>
                 <?php ActiveForm::end(); ?>
+
+                <?php
+                $this->registerJs(<<<'JS'
+(function () {
+    var input = document.getElementById('profile-avatar-file');
+    var preview = document.getElementById('profile-avatar-preview');
+    if (!input || !preview) return;
+    input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        preview.src = URL.createObjectURL(file);
+    });
+})();
+JS
+                );
+                ?>
             <?php endif; ?>
         </section>
     </div>

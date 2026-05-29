@@ -58,6 +58,10 @@ class RegisterForm extends Model
             $user->username = User::generateUniqueUsername($this->email);
         }
 
+        if ($user->hasAttribute('avatar')) {
+            $user->avatar = User::DEFAULT_AVATAR;
+        }
+
         if (!$user->save()) {
             return false;
         }

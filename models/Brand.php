@@ -50,4 +50,14 @@ class Brand extends ActiveRecord
 
         return static::find()->where(['user_id' => $userId])->one();
     }
+
+    public static function resolveLogoPath(?string $logo): string
+    {
+        $path = trim((string) $logo);
+        if ($path !== '') {
+            return $path;
+        }
+
+        return User::DEFAULT_AVATAR;
+    }
 }
