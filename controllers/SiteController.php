@@ -13,6 +13,11 @@ use yii\web\NotFoundHttpException;
 use app\models\LoginForm;
 use app\models\RegisterForm;
 use app\models\ContactForm;
+use app\models\ProfileSettingsForm;
+use app\models\UserFavorite;
+use app\models\BrandRegisterForm;
+use app\models\ProductAddForm;
+use yii\web\UploadedFile;
 
 class SiteController extends Controller
 {
@@ -24,7 +29,15 @@ class SiteController extends Controller
         return [
             'access' => [
                 'class' => AccessControl::class,
-                'only' => ['logout', 'profile'],
+                'only' => [
+                    'logout',
+                    'profile',
+                    'toggle-favorite',
+                    'register-brand',
+                    'brand-dashboard',
+                    'edit-brand',
+                    'add-product',
+                ],
                 'rules' => [
                     [
                         'allow' => true,
@@ -36,6 +49,7 @@ class SiteController extends Controller
                 'class' => VerbFilter::class,
                 'actions' => [
                     'logout' => ['post'],
+                    'toggle-favorite' => ['post'],
                 ],
             ],
         ];
@@ -100,6 +114,7 @@ class SiteController extends Controller
         return $this->render('index', [
             'products' => $products,
             'brands' => $brands,
+            'favoriteProductIds' => $this->favoriteProductIds(),
         ]);
     }
 
@@ -136,6 +151,7 @@ class SiteController extends Controller
 
         return $this->render('catalog', [
             'products' => $products,
+            'favoriteProductIds' => $this->favoriteProductIds(),
         ]);
     }
 
@@ -166,9 +182,15 @@ class SiteController extends Controller
      */
     public function actionBrand($id)
     {
+        $brandCols = ['id', 'name', 'description', 'logo'];
+        $bSchema = Yii::$app->db->getTableSchema('{{%brands}}', true);
+        if ($bSchema !== null && $bSchema->getColumn('city') !== null) {
+            $brandCols[] = 'city';
+        }
+
         $brand = (new Query())
-            ->select(['id', 'name', 'description', 'logo'])
-            ->from('brands')
+            ->select($brandCols)
+            ->from('{{%brands}}')
             ->where(['id' => (int) $id])
             ->one();
 
@@ -203,6 +225,7 @@ class SiteController extends Controller
         return $this->render('brand', [
             'brand' => $brand,
             'products' => $products,
+            'favoriteProductIds' => $this->favoriteProductIds(),
         ]);
     }
 
@@ -283,6 +306,8 @@ class SiteController extends Controller
             'images' => $images,
             'sizes' => $sizes,
             'recommended' => $recommended,
+            'isFavorite' => $this->isProductFavorite((int) $id),
+            'favoriteProductIds' => $this->favoriteProductIds(),
         ]);
     }
 
@@ -299,6 +324,11 @@ class SiteController extends Controller
 
         $model = new LoginForm();
         if ($model->load(Yii::$app->request->post()) && $model->login()) {
+            $returnUrl = Yii::$app->request->post('returnUrl', Yii::$app->request->get('returnUrl'));
+            $safe = $this->sanitizeReturnUrl($returnUrl);
+            if ($safe !== null) {
+                return $this->redirect($safe);
+            }
             return $this->redirect(['profile']);
         }
 
@@ -330,12 +360,229 @@ class SiteController extends Controller
     }
 
     /**
+     * Регистрация бренда для продавца (название, описание, город).
+     *
+     * @return Response|string
+     */
+    public function actionRegisterBrand()
+    {
+        $user = Yii::$app->user->identity;
+        if ($user === null) {
+            return $this->redirect(['login']);
+        }
+
+        $uid = (int) $user->id;
+
+        try {
+            $schema = Yii::$app->db->getTableSchema('{{%brands}}', true);
+            if ($schema !== null && $schema->getColumn('user_id') !== null) {
+                $existingId = (new Query())
+                    ->select('id')
+                    ->from('{{%brands}}')
+                    ->where(['user_id' => $uid])
+                    ->scalar();
+                if ($existingId !== false && $existingId !== null) {
+                    Yii::$app->session->setFlash('info', 'У вас уже зарегистрирован бренд.');
+                    return $this->redirect(['brand-dashboard']);
+                }
+            }
+        } catch (\Throwable $e) {
+            // продолжаем — форма покажет ошибку при сохранении
+        }
+
+        $model = new BrandRegisterForm();
+        if ($model->load(Yii::$app->request->post()) && $model->save($uid)) {
+            Yii::$app->session->setFlash('success', 'Бренд успешно зарегистрирован.');
+            return $this->redirect(['brand-dashboard']);
+        }
+
+        return $this->render('register-brand', [
+            'model' => $model,
+        ]);
+    }
+
+    /**
+     * Панель управления брендом (продавец).
+     *
+     * @return Response|string
+     */
+    public function actionBrandDashboard()
+    {
+        $user = Yii::$app->user->identity;
+        if ($user === null) {
+            return $this->redirect(['login']);
+        }
+
+        $brand = $this->findOwnedBrand((int) $user->id);
+        if ($brand === null) {
+            return $this->redirect(['register-brand']);
+        }
+
+        $listTab = (string) Yii::$app->request->get('list', 'active');
+        if (!in_array($listTab, ['active', 'archive'], true)) {
+            $listTab = 'active';
+        }
+
+        $bid = (int) $brand['id'];
+
+        $productQuery = (new Query())
+            ->select([
+                'p.id',
+                'p.name',
+                'p.price',
+                'p.status',
+                'image' => 'COALESCE(main_img.image, any_img.image)',
+            ])
+            ->from(['p' => 'products'])
+            ->leftJoin(
+                ['main_img' => 'product_images'],
+                'main_img.product_id = p.id AND main_img.is_main = 1'
+            )
+            ->leftJoin(
+                ['any_img' => 'product_images'],
+                'any_img.id = (
+                    SELECT MIN(pi.id)
+                    FROM product_images pi
+                    WHERE pi.product_id = p.id
+                )'
+            )
+            ->where(['p.brand_id' => $bid]);
+
+        if ($listTab === 'active') {
+            $productQuery->andWhere(['p.status' => 'active']);
+        } else {
+            $productQuery->andWhere(['not', ['p.status' => 'active']]);
+        }
+
+        $dashboardProducts = $productQuery
+            ->orderBy(['p.id' => SORT_DESC])
+            ->all();
+
+        $totalProducts = (int) (new Query())->from('products')->where(['brand_id' => $bid])->count();
+        $activeProductsCount = (int) (new Query())
+            ->from('products')
+            ->where(['brand_id' => $bid, 'status' => 'active'])
+            ->count();
+
+        $fullDesc = (string) ($brand['description'] ?? '');
+        $parts = preg_split('/\r\n\r\n|\n\s*\n/', $fullDesc, 2);
+        $conceptText = trim($parts[0] ?? '');
+        $historyText = isset($parts[1]) ? trim($parts[1]) : '';
+        if ($historyText === '') {
+            $historyText = $conceptText;
+        }
+
+        $yearFounded = '';
+        if (!empty($brand['created_at'])) {
+            $ts = strtotime((string) $brand['created_at']);
+            if ($ts !== false) {
+                $yearFounded = date('Y', $ts);
+            }
+        }
+
+        return $this->render('brand-dashboard', [
+            'brand' => $brand,
+            'dashboardProducts' => $dashboardProducts,
+            'listTab' => $listTab,
+            'totalProducts' => $totalProducts,
+            'activeProductsCount' => $activeProductsCount,
+            'conceptText' => $conceptText,
+            'historyText' => $historyText,
+            'yearFounded' => $yearFounded,
+        ]);
+    }
+
+    /**
+     * Редактирование данных бренда (владелец).
+     *
+     * @return Response|string
+     */
+    public function actionEditBrand()
+    {
+        $user = Yii::$app->user->identity;
+        if ($user === null) {
+            return $this->redirect(['login']);
+        }
+        $uid = (int) $user->id;
+
+        $brand = $this->findOwnedBrand($uid);
+        if ($brand === null) {
+            return $this->redirect(['register-brand']);
+        }
+
+        $model = new BrandRegisterForm();
+        $model->loadFromBrand($brand);
+
+        if ($model->load(Yii::$app->request->post()) && $model->updateBrand((int) $brand['id'], $uid)) {
+            Yii::$app->session->setFlash('success', 'Данные бренда сохранены.');
+            return $this->redirect(['brand-dashboard']);
+        }
+
+        return $this->render('edit-brand', [
+            'model' => $model,
+        ]);
+    }
+
+    /**
+     * Добавление товара (владелец бренда).
+     *
+     * @return Response|string
+     */
+    public function actionAddProduct()
+    {
+        $user = Yii::$app->user->identity;
+        if ($user === null) {
+            return $this->redirect(['login']);
+        }
+
+        $brand = $this->findOwnedBrand((int) $user->id);
+        if ($brand === null) {
+            return $this->redirect(['register-brand']);
+        }
+
+        $model = new ProductAddForm();
+        if (Yii::$app->request->isPost) {
+            $model->load(Yii::$app->request->post());
+            $model->imageFile = UploadedFile::getInstance($model, 'imageFile');
+            $productId = $model->saveProduct((int) $brand['id']);
+            if ($productId !== null) {
+                Yii::$app->session->setFlash('success', 'Товар добавлен.');
+                return $this->redirect(['product', 'id' => $productId]);
+            }
+        }
+
+        return $this->render('add-product', [
+            'model' => $model,
+            'brand' => $brand,
+        ]);
+    }
+
+    /**
      * Личный кабинет (после входа или регистрации).
      *
      * @return string
      */
     public function actionProfile()
     {
+        $user = Yii::$app->user->identity;
+        if ($user === null) {
+            return $this->redirect(['login']);
+        }
+
+        $tab = (string) Yii::$app->request->get('tab', 'overview');
+        $allowedTabs = ['overview', 'orders', 'favorites', 'settings'];
+        if (!in_array($tab, $allowedTabs, true)) {
+            $tab = 'overview';
+        }
+
+        $settingsForm = new ProfileSettingsForm(['user' => $user]);
+        if ($tab === 'settings' && Yii::$app->request->isPost) {
+            if ($settingsForm->load(Yii::$app->request->post()) && $settingsForm->save()) {
+                Yii::$app->session->setFlash('success', 'Изменения сохранены.');
+                return $this->redirect(['profile', 'tab' => 'settings']);
+            }
+        }
+
         $recommendedProducts = (new Query())
             ->select([
                 'p.id',
@@ -361,9 +608,197 @@ class SiteController extends Controller
             ->limit(3)
             ->all();
 
+        $uid = (int) $user->id;
+
+        $orders = [];
+        try {
+            $orders = (new Query())
+                ->select(['id', 'status', 'total', 'created_at'])
+                ->from('orders')
+                ->where(['user_id' => $uid])
+                ->orderBy(['created_at' => SORT_DESC])
+                ->all();
+        } catch (\Throwable $e) {
+            $orders = [];
+        }
+
+        $favoriteProducts = [];
+        try {
+            $favoriteProducts = (new Query())
+                ->select([
+                    'p.id',
+                    'p.name',
+                    'p.price',
+                    'image' => 'COALESCE(main_img.image, any_img.image)',
+                    'fav_at' => 'f.created_at',
+                ])
+                ->from(['f' => 'user_favorites'])
+                ->innerJoin(['p' => 'products'], 'p.id = f.product_id')
+                ->leftJoin(
+                    ['main_img' => 'product_images'],
+                    'main_img.product_id = p.id AND main_img.is_main = 1'
+                )
+                ->leftJoin(
+                    ['any_img' => 'product_images'],
+                    'any_img.id = (
+                        SELECT MIN(pi.id)
+                        FROM product_images pi
+                        WHERE pi.product_id = p.id
+                    )'
+                )
+                ->where(['f.user_id' => $uid])
+                ->orderBy(['f.created_at' => SORT_DESC])
+                ->all();
+        } catch (\Throwable $e) {
+            $favoriteProducts = [];
+        }
+
+        $favoriteCount = count($favoriteProducts);
+        $activeOrdersCount = 0;
+        foreach ($orders as $o) {
+            $st = (string) ($o['status'] ?? '');
+            if (!in_array($st, ['delivered', 'cancelled'], true)) {
+                $activeOrdersCount++;
+            }
+        }
+
+        $sellerBrand = $this->findOwnedBrand($uid);
+
         return $this->render('profile', [
+            'tab' => $tab,
             'recommendedProducts' => $recommendedProducts,
+            'orders' => $orders,
+            'favoriteProducts' => $favoriteProducts,
+            'settingsForm' => $settingsForm,
+            'favoriteCount' => $favoriteCount,
+            'activeOrdersCount' => $activeOrdersCount,
+            'favoriteProductIds' => $this->favoriteProductIds(),
+            'sellerBrand' => $sellerBrand,
         ]);
+    }
+
+    /**
+     * Добавить или убрать товар из избранного (только для авторизованных).
+     */
+    public function actionToggleFavorite()
+    {
+        $productId = (int) Yii::$app->request->post('product_id');
+        $returnUrl = Yii::$app->request->post('returnUrl');
+        $redirectTo = $this->sanitizeReturnUrl($returnUrl) ?? ['/site/catalog'];
+
+        if ($productId <= 0) {
+            Yii::$app->session->setFlash('warning', 'Некорректный товар.');
+            return $this->redirect($redirectTo);
+        }
+
+        $productExists = (new Query())
+            ->from('products')
+            ->where(['id' => $productId])
+            ->exists();
+        if (!$productExists) {
+            Yii::$app->session->setFlash('warning', 'Товар не найден.');
+            return $this->redirect($redirectTo);
+        }
+
+        $uid = (int) Yii::$app->user->id;
+
+        try {
+            $row = UserFavorite::find()->where(['user_id' => $uid, 'product_id' => $productId])->one();
+            if ($row !== null) {
+                $row->delete();
+                Yii::$app->session->setFlash('info', 'Товар убран из избранного.');
+            } else {
+                $f = new UserFavorite();
+                $f->user_id = $uid;
+                $f->product_id = $productId;
+                if (!$f->save()) {
+                    Yii::$app->session->setFlash('warning', 'Не удалось обновить избранное.');
+                } else {
+                    Yii::$app->session->setFlash('success', 'Товар добавлен в избранное.');
+                }
+            }
+        } catch (\Throwable $e) {
+            Yii::$app->session->setFlash('danger', 'Таблица избранного недоступна. Выполните SQL-скрипт из папки sql.');
+        }
+
+        return $this->redirect($redirectTo);
+    }
+
+    /**
+     * @return int[]
+     */
+    protected function favoriteProductIds(): array
+    {
+        if (Yii::$app->user->isGuest) {
+            return [];
+        }
+        $uid = (int) Yii::$app->user->id;
+        try {
+            return array_map('intval', (new Query())
+                ->select('product_id')
+                ->from('user_favorites')
+                ->where(['user_id' => $uid])
+                ->column());
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    protected function isProductFavorite(int $productId): bool
+    {
+        if (Yii::$app->user->isGuest || $productId <= 0) {
+            return false;
+        }
+        try {
+            return (new Query())
+                ->from('user_favorites')
+                ->where(['user_id' => (int) Yii::$app->user->id, 'product_id' => $productId])
+                ->exists();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Разрешить только относительные пути приложения (без open redirect).
+     *
+     * @param mixed $url
+     */
+    protected function sanitizeReturnUrl($url): ?string
+    {
+        if (!is_string($url) || $url === '') {
+            return null;
+        }
+        if (!str_starts_with($url, '/') || str_starts_with($url, '//')) {
+            return null;
+        }
+        return $url;
+    }
+
+    /**
+     * Бренд, привязанный к пользователю (колонка user_id).
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function findOwnedBrand(int $userId): ?array
+    {
+        if ($userId <= 0) {
+            return null;
+        }
+        try {
+            $schema = Yii::$app->db->getTableSchema('{{%brands}}', true);
+            if ($schema === null || $schema->getColumn('user_id') === null) {
+                return null;
+            }
+            $row = (new Query())
+                ->from('{{%brands}}')
+                ->where(['user_id' => $userId])
+                ->limit(1)
+                ->one();
+            return is_array($row) ? $row : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**

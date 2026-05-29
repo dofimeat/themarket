@@ -4,6 +4,8 @@
 /** @var array $images */
 /** @var array $sizes */
 /** @var array $recommended */
+/** @var bool $isFavorite */
+/** @var int[] $favoriteProductIds */
 
 use yii\helpers\Html;
 use yii\helpers\Url;
@@ -12,6 +14,8 @@ $this->title = (string) ($product['name'] ?? 'Товар');
 $images = $images ?? [];
 $sizes = $sizes ?? [];
 $recommended = $recommended ?? [];
+$isFavorite = (bool) ($isFavorite ?? false);
+$favoriteProductIds = array_map('intval', $favoriteProductIds ?? []);
 
 $brandName = trim((string) ($product['brand_name'] ?? ''));
 $brandLogo = trim((string) ($product['brand_logo'] ?? ''));
@@ -69,7 +73,16 @@ $brandLogo = trim((string) ($product['brand_logo'] ?? ''));
                     </select>
                 </div>
 
-                <button class="btn product-add" type="button">Добавить в корзину</button>
+                <div class="product-actions-stack">
+                    <button class="btn product-add" type="button">Добавить в корзину</button>
+                    <div class="product-favorite-below">
+                        <?= $this->render('_favorite_btn', [
+                            'productId' => (int) ($product['id'] ?? 0),
+                            'isFavorite' => $isFavorite,
+                            'extraClass' => 'fav-btn--lg',
+                        ]) ?>
+                    </div>
+                </div>
 
                 <div class="product-brand-box-centered">
                     <?= Html::encode($brandName !== '' ? $brandName : 'RetroMakers') ?>
@@ -100,21 +113,28 @@ $brandLogo = trim((string) ($product['brand_logo'] ?? ''));
                 <div class="product-reco-title" style="font-size: 14px; color: #999; margin-bottom: 32px;">Вам может понравиться</div>
                 <div class="product-grid">
                     <?php foreach ($recommended as $rec): ?>
-                        <a class="product-card" href="<?= Html::encode(Url::to(['/site/product', 'id' => (int) $rec['id']])) ?>" style="text-decoration: none; color: inherit;">
-                            <?php if (!empty($rec['image'])): ?>
-                                <img
-                                    src="<?= Html::encode(Url::to('@web/' . ltrim($rec['image'], '/'))) ?>"
-                                    class="product-image"
-                                    alt="<?= Html::encode($rec['name'] ?? '') ?>"
-                                    loading="lazy"
-                                    draggable="false"
-                                >
-                            <?php else: ?>
-                                <div class="product-image" style="background: #f2f2f2;"></div>
-                            <?php endif; ?>
-                            <h3><?= Html::encode($rec['name'] ?? '') ?></h3>
-                            <p><?= number_format((float) ($rec['price'] ?? 0), 0, '', ' ') ?> ₽</p>
-                        </a>
+                        <div class="product-card-wrap product-card-wrap--reco">
+                            <a class="product-card" href="<?= Html::encode(Url::to(['/site/product', 'id' => (int) $rec['id']])) ?>" style="text-decoration: none; color: inherit;">
+                                <?php if (!empty($rec['image'])): ?>
+                                    <img
+                                        src="<?= Html::encode(Url::to('@web/' . ltrim($rec['image'], '/'))) ?>"
+                                        class="product-image"
+                                        alt="<?= Html::encode($rec['name'] ?? '') ?>"
+                                        loading="lazy"
+                                        draggable="false"
+                                    >
+                                <?php else: ?>
+                                    <div class="product-image" style="background: #f2f2f2;"></div>
+                                <?php endif; ?>
+                                <h3><?= Html::encode($rec['name'] ?? '') ?></h3>
+                                <p><?= number_format((float) ($rec['price'] ?? 0), 0, '', ' ') ?> ₽</p>
+                            </a>
+                            <?= $this->render('_favorite_btn', [
+                                'productId' => (int) $rec['id'],
+                                'isFavorite' => in_array((int) $rec['id'], $favoriteProductIds, true),
+                                'extraClass' => 'fav-btn--sm fav-btn--on-card',
+                            ]) ?>
+                        </div>
                     <?php endforeach; ?>
                 </div>
             </div>

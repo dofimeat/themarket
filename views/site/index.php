@@ -1,12 +1,14 @@
 <?php
 /** @var yii\web\View $this */
 /** @var array $products */
+/** @var int[] $favoriteProductIds */
 
 use yii\helpers\Html;
 use yii\helpers\Url;
 
 $this->title = 'TheMarket';
 $products = $products ?? [];
+$favoriteProductIds = array_map('intval', $favoriteProductIds ?? []);
 $productSlides = array_chunk($products, 4);
 if (empty($productSlides)) {
     $productSlides = [[]];
@@ -63,7 +65,7 @@ if (empty($productSlides)) {
                 <div class="carousel-item <?= $slideIndex === 0 ? 'active' : '' ?>">
                     <div class="product-grid">
                         <?php foreach ($slide as $product): ?>
-                            <article class="product-card">
+                            <article class="product-card product-card-wrap">
                                 <a href="<?= Html::encode(Url::to(['/site/product', 'id' => (int) $product['id']])) ?>" style="text-decoration: none; color: inherit; display: block;">
                                     <?php if (!empty($product['image'])): ?>
                                         <img
@@ -79,6 +81,11 @@ if (empty($productSlides)) {
                                     <h3><?= Html::encode($product['name']) ?></h3>
                                     <p><?= number_format((float) $product['price'], 0, '', ' ') ?> ₽</p>
                                 </a>
+                                <?= $this->render('_favorite_btn', [
+                                    'productId' => (int) $product['id'],
+                                    'isFavorite' => in_array((int) $product['id'], $favoriteProductIds, true),
+                                    'extraClass' => 'fav-btn--sm fav-btn--on-card',
+                                ]) ?>
                             </article>
                         <?php endforeach; ?>
                         <?php for ($i = count($slide); $i < 4; $i++): ?>

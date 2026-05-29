@@ -60,6 +60,10 @@ $config = [
                 'login' => 'site/login',
                 'register' => 'site/register',
                 'profile' => 'site/profile',
+                'register-brand' => 'site/register-brand',
+                'brand-dashboard' => 'site/brand-dashboard',
+                'edit-brand' => 'site/edit-brand',
+                'add-product' => 'site/add-product',
             ],
         ],
         

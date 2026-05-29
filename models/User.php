@@ -18,6 +18,8 @@ use yii\web\IdentityInterface;
  * @property string|null $auth_key
  * @property string $first_name
  * @property string $last_name
+ * @property int|null $notify_news
+ * @property int|null $notify_orders
  * @property string|null $created_at
  */
 class User extends ActiveRecord implements IdentityInterface
