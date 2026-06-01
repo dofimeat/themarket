@@ -27,6 +27,12 @@ class User extends ActiveRecord implements IdentityInterface
 {
     /** Роль новых пользователей при регистрации (должна быть допустима в колонке `role`). */
     public const ROLE_DEFAULT = 'user';
+    public const ROLE_ADMIN = 'admin';
+    public const ROLE_SELLER = 'seller';
+
+    /** Статусы аккаунта. */
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_BLOCKED = 'blocked';
 
     /** Путь от корня web для новых пользователей без своей аватарки. */
     public const DEFAULT_AVATAR = 'images/defolt-avatar.png';
@@ -61,6 +67,9 @@ class User extends ActiveRecord implements IdentityInterface
         ];
         if ($this->hasAttribute('role')) {
             $common[] = ['role', 'string', 'max' => 50];
+        }
+        if ($this->hasAttribute('status')) {
+            $common[] = ['status', 'in', 'range' => [self::STATUS_ACTIVE, self::STATUS_BLOCKED]];
         }
         if ($this->hasAttribute('auth_key')) {
             $common[] = ['auth_key', 'string', 'max' => 32];
@@ -132,6 +141,16 @@ class User extends ActiveRecord implements IdentityInterface
             $candidate = $base . '_' . $n;
         }
         return $candidate;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->hasAttribute('role') && (string) $this->getAttribute('role') === self::ROLE_ADMIN;
+    }
+
+    public function isBlocked(): bool
+    {
+        return $this->hasAttribute('status') && (string) $this->getAttribute('status') === self::STATUS_BLOCKED;
     }
 
     public function getId()

@@ -142,6 +142,9 @@ class BrandRegisterForm extends Model
         if ($schema->getColumn('created_at') !== null) {
             $row['created_at'] = new Expression('NOW()');
         }
+        if ($schema->getColumn('status') !== null) {
+            $row['status'] = Brand::STATUS_PENDING;
+        }
 
         try {
             Yii::$app->db->createCommand()->insert('{{%brands}}', $row)->execute();
@@ -158,19 +161,6 @@ class BrandRegisterForm extends Model
                 return false;
             }
             Yii::$app->db->createCommand()->update('{{%brands}}', ['logo' => $logoPath], ['id' => $this->brandId])->execute();
-        }
-
-        $user = User::findIdentity($userId);
-        if ($user !== null && $user->hasAttribute('role')) {
-            $user->setAttribute('role', 'seller');
-            $user->save(false);
-        }
-
-        if (Yii::$app->user->identity !== null && (int) Yii::$app->user->id === $userId) {
-            $fresh = User::findIdentity($userId);
-            if ($fresh !== null) {
-                Yii::$app->user->setIdentity($fresh);
-            }
         }
 
         return $this->brandId > 0;

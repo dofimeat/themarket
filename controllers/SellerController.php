@@ -112,16 +112,16 @@ class SellerController extends Controller
             ->where(['p.brand_id' => $bid]);
 
         if ($listTab === 'active') {
-            $productQuery->andWhere(['p.status' => 'active']);
+            $productQuery->andWhere(['p.status' => 'published']);
         } else {
-            $productQuery->andWhere(['not', ['p.status' => 'active']]);
+            $productQuery->andWhere(['not', ['p.status' => 'published']]);
         }
 
         $dashboardProducts = $productQuery->orderBy(['p.id' => SORT_DESC])->all();
 
         $totalProducts = (int) Product::find()->where(['brand_id' => $bid])->count();
         $activeProductsCount = (int) Product::find()
-            ->where(['brand_id' => $bid, 'status' => Product::STATUS_ACTIVE])
+            ->where(['brand_id' => $bid, 'status' => Product::STATUS_PUBLISHED])
             ->count();
 
         $brandRow = $brand->attributes;
@@ -246,7 +246,7 @@ class SellerController extends Controller
         return $this->render('edit-product', [
             'model' => $model,
             'brand' => $brand->attributes,
-            'productStatus' => (string) ($product->status ?? Product::STATUS_ACTIVE),
+            'productStatus' => (string) ($product->status ?? Product::STATUS_PUBLISHED),
         ]);
     }
 
@@ -263,19 +263,23 @@ class SellerController extends Controller
             throw new NotFoundHttpException('Товар не найден.');
         }
 
-        $current = (string) ($product->status ?? Product::STATUS_ACTIVE);
-        $next = $current === Product::STATUS_ACTIVE ? Product::STATUS_DRAFT : Product::STATUS_ACTIVE;
+        $current = (string) ($product->status ?? Product::STATUS_PUBLISHED);
+        if ($current === Product::STATUS_PUBLISHED || $current === Product::STATUS_DRAFT) {
+            $next = $current === Product::STATUS_PUBLISHED ? Product::STATUS_DRAFT : Product::STATUS_PUBLISHED;
+        } else {
+            $next = $current;
+        }
         $product->status = $next;
         $product->save(false);
 
         Yii::$app->session->setFlash(
             'success',
-            $next === Product::STATUS_ACTIVE ? 'Товар снова в активных.' : 'Товар перенесён в архив.'
+            $next === Product::STATUS_PUBLISHED ? 'Товар снова в активных.' : 'Товар перенесён в архив.'
         );
 
         return $this->redirect([
             'brand-dashboard',
-            'list' => $next === Product::STATUS_ACTIVE ? 'active' : 'archive',
+            'list' => $next === Product::STATUS_PUBLISHED ? 'active' : 'archive',
         ]);
     }
 }

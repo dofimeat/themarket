@@ -20,6 +20,10 @@ use yii\db\ActiveRecord;
  */
 class Brand extends ActiveRecord
 {
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_REJECTED = 'rejected';
+
     public static function tableName(): string
     {
         return '{{%brands}}';
@@ -33,6 +37,8 @@ class Brand extends ActiveRecord
             [['logo', 'banner_image', 'city'], 'string', 'max' => 255],
             [['banner_color'], 'string', 'max' => 20],
             [['user_id'], 'integer'],
+            [['status'], 'in', 'range' => [self::STATUS_PENDING, self::STATUS_APPROVED, self::STATUS_REJECTED]],
+            [['is_blocked'], 'boolean'],
         ];
     }
 
@@ -52,6 +58,27 @@ class Brand extends ActiveRecord
         }
 
         return static::find()->where(['user_id' => $userId])->one();
+    }
+
+    public static function findApprovedByUserId(int $userId): ?self
+    {
+        $brand = static::findByUserId($userId);
+        if ($brand === null) {
+            return null;
+        }
+        if ($brand->isBlocked()) {
+            return null;
+        }
+        $status = $brand->hasAttribute('status') ? (string) $brand->getAttribute('status') : '';
+        if ($status !== self::STATUS_APPROVED) {
+            return null;
+        }
+        return $brand;
+    }
+
+    public function isBlocked(): bool
+    {
+        return $this->hasAttribute('is_blocked') && (bool) $this->getAttribute('is_blocked');
     }
 
     public static function resolveLogoPath(?string $logo): string

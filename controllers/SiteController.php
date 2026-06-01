@@ -93,7 +93,7 @@ class SiteController extends Controller
                     WHERE pi.product_id = p.id
                 )'
             )
-            ->where(['p.status' => 'active'])
+            ->where(['p.status' => 'published'])
             ->orderBy(['p.created_at' => SORT_DESC])
             ->limit(12)
             ->all();
@@ -102,6 +102,8 @@ class SiteController extends Controller
             ->select(['id', 'name', 'logo'])
             ->from('brands')
             ->where(['not', ['logo' => null]])
+            ->andWhere(['status' => Brand::STATUS_APPROVED])
+            ->andWhere(['is_blocked' => 0])
             ->orderBy(['created_at' => SORT_DESC])
             ->limit(5)
             ->all();
@@ -140,7 +142,7 @@ class SiteController extends Controller
                     WHERE pi.product_id = p.id
                 )'
             )
-            ->where(['p.status' => 'active'])
+            ->where(['p.status' => 'published'])
             ->orderBy(['p.created_at' => SORT_DESC])
             ->all();
 
@@ -160,6 +162,8 @@ class SiteController extends Controller
         $brands = (new Query())
             ->select(['id', 'name', 'description', 'logo'])
             ->from('brands')
+            ->where(['status' => Brand::STATUS_APPROVED])
+            ->andWhere(['is_blocked' => 0])
             ->orderBy(['created_at' => SORT_DESC])
             ->all();
 
@@ -189,11 +193,19 @@ class SiteController extends Controller
             $brandCols[] = 'banner_color';
         }
 
-        $brand = (new Query())
+        $brandQuery = (new Query())
             ->select($brandCols)
             ->from('{{%brands}}')
-            ->where(['id' => (int) $id])
-            ->one();
+            ->where(['id' => (int) $id]);
+
+        if ($bSchema !== null && $bSchema->getColumn('status') !== null) {
+            $brandQuery->andWhere(['status' => Brand::STATUS_APPROVED]);
+        }
+        if ($bSchema !== null && $bSchema->getColumn('is_blocked') !== null) {
+            $brandQuery->andWhere(['is_blocked' => 0]);
+        }
+
+        $brand = $brandQuery->one();
 
         if (!$brand) {
             throw new NotFoundHttpException('Бренд не найден.');
@@ -219,7 +231,7 @@ class SiteController extends Controller
                     WHERE pi.product_id = p.id
                 )'
             )
-            ->where(['p.brand_id' => (int) $id, 'p.status' => 'active'])
+            ->where(['p.brand_id' => (int) $id, 'p.status' => 'published'])
             ->orderBy(['p.created_at' => SORT_DESC])
             ->all();
 
@@ -256,6 +268,14 @@ class SiteController extends Controller
 
         if (!$product) {
             throw new NotFoundHttpException('Товар не найден.');
+        }
+
+        $brandId = (int) ($product['brand_id'] ?? 0);
+        if ($brandId > 0) {
+            $brand = Brand::findOne($brandId);
+            if ($brand === null || $brand->status !== Brand::STATUS_APPROVED || $brand->isBlocked()) {
+                throw new NotFoundHttpException('Товар не найден.');
+            }
         }
 
         $imageOrder = array_merge(['is_main' => SORT_DESC], ProductImage::orderByColumns());
@@ -298,7 +318,7 @@ class SiteController extends Controller
                     WHERE pi.product_id = p.id
                 )'
             )
-            ->where(['p.status' => 'active'])
+            ->where(['p.status' => 'published'])
             ->andWhere(['<>', 'p.id', (int) $id])
             ->orderBy(new \yii\db\Expression('RAND()'))
             ->limit(4)
@@ -408,7 +428,7 @@ class SiteController extends Controller
                     WHERE pi.product_id = p.id
                 )'
             )
-            ->where(['p.status' => 'active'])
+            ->where(['p.status' => 'published'])
             ->orderBy(new Expression('RAND()'))
             ->limit(3)
             ->all();
@@ -653,7 +673,7 @@ class SiteController extends Controller
                     WHERE pi.product_id = p.id
                 )"
                 )
-                ->where(['p.status' => 'active'])
+                ->where(['p.status' => 'published'])
                 ->andWhere(['like', 'p.name', $q])
                 ->orderBy(['p.created_at' => SORT_DESC])
                 ->all();
@@ -662,6 +682,8 @@ class SiteController extends Controller
                 ->select(['id', 'name', 'description', 'logo'])
                 ->from('brands')
                 ->where(['like', 'name', $q])
+                ->andWhere(['status' => Brand::STATUS_APPROVED])
+                ->andWhere(['is_blocked' => 0])
                 ->orderBy(['created_at' => SORT_DESC])
                 ->all();
         }

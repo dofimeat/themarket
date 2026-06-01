@@ -21,8 +21,10 @@ use yii\db\ActiveRecord;
  */
 class Product extends ActiveRecord
 {
-    public const STATUS_ACTIVE = 'active';
     public const STATUS_DRAFT = 'draft';
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_PUBLISHED = 'published';
+    public const STATUS_REJECTED = 'rejected';
 
     public static function tableName(): string
     {
@@ -36,7 +38,7 @@ class Product extends ActiveRecord
             [['description'], 'string'],
             [['price'], 'number', 'min' => 0],
             [['brand_id', 'category_id'], 'integer'],
-            [['status'], 'string', 'max' => 32],
+            [['status'], 'in', 'range' => [self::STATUS_DRAFT, self::STATUS_PENDING, self::STATUS_PUBLISHED, self::STATUS_REJECTED]],
         ];
     }
 

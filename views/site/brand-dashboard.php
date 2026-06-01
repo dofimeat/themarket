@@ -39,6 +39,24 @@ $this->title = 'Панель управления — ' . $name;
         <a class="seller-dash-btn-add" href="<?= Html::encode(Url::to(['seller/add-product'])) ?>">+ Добавить товар</a>
     </header>
 
+    <?php
+    $brandStatus = $brand['status'] ?? '';
+    $brandBlocked = !empty($brand['is_blocked']);
+    ?>
+    <?php if ($brandStatus === \app\models\Brand::STATUS_PENDING): ?>
+        <div class="seller-dash-notice seller-dash-notice--warning">
+            <strong>Ожидает проверки.</strong> Ваш бренд отправлен на модерацию. После одобрения администратором он появится на сайте и вы получите роль продавца.
+        </div>
+    <?php elseif ($brandStatus === \app\models\Brand::STATUS_REJECTED): ?>
+        <div class="seller-dash-notice seller-dash-notice--danger">
+            <strong>Бренд отклонён.</strong> Свяжитесь с администрацией для уточнения причин.
+        </div>
+    <?php elseif ($brandBlocked): ?>
+        <div class="seller-dash-notice seller-dash-notice--danger">
+            <strong>Бренд заблокирован.</strong> Свяжитесь с администрацией для уточнения.
+        </div>
+    <?php endif; ?>
+
     <section class="seller-dash-stats" aria-label="Показатели">
         <div class="seller-dash-stat card-like">
             <div class="seller-dash-stat-value">0</div>

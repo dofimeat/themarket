@@ -101,7 +101,7 @@ class ProductAddForm extends Model
             $product->name = $this->name;
             $product->description = $this->description;
             $product->price = $priceVal;
-            $product->status = Product::STATUS_ACTIVE;
+            $product->status = Product::STATUS_PENDING;
             if ($product->hasAttribute('created_at')) {
                 $product->created_at = new Expression('NOW()');
             }

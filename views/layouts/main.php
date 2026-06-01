@@ -34,6 +34,9 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
                 <a href="<?= Html::encode(Url::to(['/site/catalog'])) ?>">КАТАЛОГ</a>
                 <a href="<?= Html::encode(Url::to(['/site/brands'])) ?>">БРЕНДЫ</a>
                 <a href="<?= Html::encode(Url::to(['/site/about'])) ?>">О ПРОЕКТЕ</a>
+                <?php if (!Yii::$app->user->isGuest && Yii::$app->user->identity->isAdmin()): ?>
+                    <a href="<?= Html::encode(Url::to(['/admin'])) ?>">АДМИН</a>
+                <?php endif; ?>
             </nav>
             <div class="home-actions">
                 <div class="home-search-wrap">
