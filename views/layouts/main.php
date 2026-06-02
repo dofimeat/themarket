@@ -149,9 +149,9 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
             <div class="home-footer-bottom">
                 <div class="home-footer-muted">2026 TheMarket. Все права защищены</div>
                 <div class="home-footer-muted home-footer-bottom-links">
-                    <a class="home-footer-link muted" href="#">Пользовательское соглашение</a>
+                    <a class="home-footer-link muted" href="<?= Html::encode(Url::to(['/site/terms'])) ?>">Пользовательское соглашение</a>
                     <span aria-hidden="true">•</span>
-                    <a class="home-footer-link muted" href="#">Политика конфиденциальности</a>
+                    <a class="home-footer-link muted" href="<?= Html::encode(Url::to(['/site/privacy'])) ?>">Политика конфиденциальности</a>
                 </div>
             </div>
         </div>

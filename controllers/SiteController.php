@@ -899,6 +899,26 @@ class SiteController extends Controller
     }
 
     /**
+     * User Agreement (Terms of Service) page.
+     *
+     * @return string
+     */
+    public function actionTerms()
+    {
+        return $this->render('user-agreement');
+    }
+
+    /**
+     * Privacy Policy page.
+     *
+     * @return string
+     */
+    public function actionPrivacy()
+    {
+        return $this->render('privacy-policy');
+    }
+
+    /**
      * Search products by name.
      *
      * @return string

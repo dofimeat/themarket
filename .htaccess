@@ -1,3 +1,8 @@
-    RewriteEngine on
-    
-	RewriteRule ^(.*)$ web/$1
+RewriteEngine on
+RewriteBase /diplom-1.0v/
+
+# Redirect all requests to web/ directory
+RewriteCond %{REQUEST_URI} !^/diplom-1.0v/web/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ web/$1 [L,QSA]
