@@ -15,7 +15,7 @@ $config = [
         'request' => [
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
             'cookieValidationKey' => 'freeroblox',
-            'baseUrl' => '/diplom-1.0v',
+            // 'baseUrl' => '',
         ],
         'assetManager' => [
             // Helps when assets/CSS look "missing" due to caching or stale published bundles.
