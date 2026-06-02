@@ -30,7 +30,7 @@ $this->title = 'О проекте';
     </section>
 
     <section class="opportunities-section">
-        <h2 class="opportunities-title">NAME даёт возможность</h2>
+        <h2 class="opportunities-title">Themarket даёт возможность</h2>
         <div class="opportunities-grid-container">
             <div class="opportunities-intro">
                 Станьте частью закрытого клуба. Получите ранний доступ к лимитированным дропам и возможность выставлять свои работы.
