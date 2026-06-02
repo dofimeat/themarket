@@ -29,8 +29,9 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
 <div class="home-page">
     <header class="home-header">
         <div class="home-wrap">
-            <a href="/" class="home-logo">TheMarket</a>
+            <a href="<?= Html::encode(Url::to(['/'])) ?>" class="home-logo">TheMarket</a>
             <nav class="home-nav" id="main-nav">
+                <!-- <a href="<?= Html::encode(Url::to(['/'])) ?>">ГЛАВНАЯ</a> -->
                 <a href="<?= Html::encode(Url::to(['/site/catalog'])) ?>">КАТАЛОГ</a>
                 <a href="<?= Html::encode(Url::to(['/site/brands'])) ?>">БРЕНДЫ</a>
                 <a href="<?= Html::encode(Url::to(['/site/about'])) ?>">О ПРОЕКТЕ</a>
@@ -81,10 +82,11 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
     <div class="mobile-nav-overlay" id="mobile-nav-overlay">
         <div class="mobile-nav-panel">
             <div class="mobile-nav-header">
-                <span class="home-logo">TheMarket</span>
+            <a href="<?= Html::encode(Url::to(['/'])) ?>" class="home-logo">TheMarket</a>
                 <button type="button" class="mobile-nav-close" id="mobile-nav-close" aria-label="Закрыть">×</button>
             </div>
             <nav class="mobile-nav-links">
+                <!-- <a href="<?= Html::encode(Url::to(['/'])) ?>">Главная</a> -->
                 <a href="<?= Html::encode(Url::to(['/site/catalog'])) ?>">Каталог</a>
                 <a href="<?= Html::encode(Url::to(['/site/brands'])) ?>">Бренды</a>
                 <a href="<?= Html::encode(Url::to(['/site/about'])) ?>">О проекте</a>

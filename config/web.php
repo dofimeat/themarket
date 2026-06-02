@@ -53,6 +53,7 @@ $config = [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'rules' => [
+                '' => 'site/index',
                 'catalog' => 'site/catalog',
                 'search' => 'site/search',
                 'faq' => 'site/faq',
