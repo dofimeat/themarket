@@ -17,6 +17,7 @@ $this->title = 'Добавить товар';
 $newFilesId = 'seller-add-new-images';
 $this->registerJsFile('@web/js/seller-product-sizes.js', ['depends' => [\yii\web\YiiAsset::class]]);
 $this->registerJs('initSellerProductSizes({formName: "ProductAddForm"});', \yii\web\View::POS_END);
+$this->registerJs('initSellerProductFeatures({formName: "ProductAddForm"});', \yii\web\View::POS_END);
 $this->registerJs(<<<JS
 (function () {
     var newInput = document.getElementById('{$newFilesId}');
@@ -127,6 +128,44 @@ JS
                     <?php endforeach; ?>
                 </div>
                 <?= Html::error($model, 'sizes', ['class' => 'seller-add-field-error']) ?>
+            </div>
+
+            <div class="seller-edit-sizes-block card-like">
+                <div class="seller-edit-sizes-head">
+                    <div class="seller-add-section-label">Характеристики</div>
+                    <button type="button" class="seller-edit-size-add" id="seller-edit-add-feature">+ Характеристика</button>
+                </div>
+                <div id="seller-edit-features" class="seller-edit-features">
+                    <?php foreach ($model->features as $i => $featRow): ?>
+                        <div class="seller-edit-feature-row">
+                            <?= Html::hiddenInput(
+                                "ProductAddForm[features][{$i}][id]",
+                                $featRow['id'] ?? '',
+                                ['data-feature-id' => true]
+                            ) ?>
+                            <?= Html::textInput(
+                                "ProductAddForm[features][{$i}][name]",
+                                $featRow['name'] ?? '',
+                                [
+                                    'class' => 'form-control seller-add-input',
+                                    'placeholder' => 'Название (Материал, Цвет…)',
+                                    'data-feature-name' => true,
+                                ]
+                            ) ?>
+                            <?= Html::textInput(
+                                "ProductAddForm[features][{$i}][value]",
+                                $featRow['value'] ?? '',
+                                [
+                                    'class' => 'form-control seller-add-input',
+                                    'placeholder' => 'Значение (Хлопок 100%…)',
+                                    'data-feature-value' => true,
+                                ]
+                            ) ?>
+                            <button type="button" class="seller-edit-size-remove" data-remove-feature aria-label="Удалить характеристику">×</button>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <?= Html::error($model, 'features', ['class' => 'seller-add-field-error']) ?>
             </div>
 
             <div class="seller-add-brand-box card-like">

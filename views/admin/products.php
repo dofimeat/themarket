@@ -80,15 +80,13 @@ $statusBadgeClass = [
                         </td>
                         <td class="admin-actions">
                             <a href="<?= Html::encode(Url::to(['/admin/product-update', 'id' => (int) $p['id']])) ?>" class="admin-btn admin-btn--edit">Редактировать</a>
-                            <div class="admin-dropdown">
-                                <button type="button" class="admin-btn admin-btn--secondary">Статус ▼</button>
-                                <div class="admin-dropdown-menu">
-                                    <a href="<?= Html::encode(Url::to(['/admin/product-status', 'id' => (int) $p['id'], 'status' => Product::STATUS_DRAFT])) ?>">Черновик</a>
-                                    <a href="<?= Html::encode(Url::to(['/admin/product-status', 'id' => (int) $p['id'], 'status' => Product::STATUS_PENDING])) ?>">На модерации</a>
-                                    <a href="<?= Html::encode(Url::to(['/admin/product-status', 'id' => (int) $p['id'], 'status' => Product::STATUS_PUBLISHED])) ?>">Опубликовать</a>
-                                    <a href="<?= Html::encode(Url::to(['/admin/product-status', 'id' => (int) $p['id'], 'status' => Product::STATUS_REJECTED])) ?>">Отклонить</a>
-                                </div>
-                            </div>
+                            <select class="admin-select admin-select--status" onchange="if(this.value) window.location.href=this.value" aria-label="Изменить статус">
+                                <option value="" disabled selected>Сменить статус</option>
+                                <option value="<?= Html::encode(Url::to(['/admin/product-status', 'id' => (int) $p['id'], 'status' => Product::STATUS_DRAFT])) ?>">Черновик</option>
+                                <option value="<?= Html::encode(Url::to(['/admin/product-status', 'id' => (int) $p['id'], 'status' => Product::STATUS_PENDING])) ?>">На модерации</option>
+                                <option value="<?= Html::encode(Url::to(['/admin/product-status', 'id' => (int) $p['id'], 'status' => Product::STATUS_PUBLISHED])) ?>">Опубликовать</option>
+                                <option value="<?= Html::encode(Url::to(['/admin/product-status', 'id' => (int) $p['id'], 'status' => Product::STATUS_REJECTED])) ?>">Отклонить</option>
+                            </select>
                             <a href="<?= Html::encode(Url::to(['/admin/product-delete', 'id' => (int) $p['id']])) ?>" class="admin-btn admin-btn--delete" data-confirm="Удалить товар?">Удалить</a>
                         </td>
                     </tr>

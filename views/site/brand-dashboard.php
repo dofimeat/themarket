@@ -130,11 +130,27 @@ $this->title = 'Панель управления — ' . $name;
             </div>
         </div>
 
+        <?php
+        $productStatusLabels = [
+            \app\models\Product::STATUS_DRAFT => 'Черновик',
+            \app\models\Product::STATUS_PENDING => 'На модерации',
+            \app\models\Product::STATUS_PUBLISHED => 'Опубликован',
+            \app\models\Product::STATUS_REJECTED => 'Отклонён',
+        ];
+        $productStatusBadge = [
+            \app\models\Product::STATUS_DRAFT => 'draft',
+            \app\models\Product::STATUS_PENDING => 'pending',
+            \app\models\Product::STATUS_PUBLISHED => 'approved',
+            \app\models\Product::STATUS_REJECTED => 'rejected',
+        ];
+        ?>
         <?php if (empty($dashboardProducts)): ?>
             <p class="seller-dash-empty">В этом разделе пока нет товаров.</p>
         <?php else: ?>
             <div class="seller-dash-product-grid">
-                <?php foreach ($dashboardProducts as $p): ?>
+                <?php foreach ($dashboardProducts as $p):
+                    $pStatus = (string) ($p['status'] ?? '');
+                ?>
                     <article class="seller-dash-pcard">
                         <div class="seller-dash-pcard-img-wrap">
                             <?php if (!empty($p['image'])): ?>
@@ -152,6 +168,11 @@ $this->title = 'Панель управления — ' . $name;
                         <div class="seller-dash-pcard-body">
                             <div class="seller-dash-pcard-title"><?= Html::encode($p['name'] ?? '') ?></div>
                             <div class="seller-dash-pcard-id">ID: <?= (int) ($p['id'] ?? 0) ?></div>
+                            <?php if ($pStatus !== '' && isset($productStatusLabels[$pStatus])): ?>
+                                <span class="seller-dash-pcard-status admin-badge admin-badge--<?= Html::encode($productStatusBadge[$pStatus] ?? $pStatus) ?>">
+                                    <?= Html::encode($productStatusLabels[$pStatus]) ?>
+                                </span>
+                            <?php endif; ?>
                             <a class="seller-dash-pcard-edit" href="<?= Html::encode(Url::to(['seller/edit-product', 'id' => (int) ($p['id'] ?? 0)])) ?>">Редактировать</a>
                         </div>
                     </article>

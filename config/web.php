@@ -71,6 +71,13 @@ $config = [
                 'add-product' => 'seller/add-product',
                 'edit-product/<id:\d+>' => 'seller/edit-product',
                 'toggle-product-status/<id:\d+>' => 'seller/toggle-product-status',
+                'cart' => 'cart/index',
+                'cart/add' => 'cart/add',
+                'cart/remove' => 'cart/remove',
+                'cart/update' => 'cart/update',
+                'cart/count' => 'cart/count',
+                'checkout' => 'checkout/index',
+                'checkout/success/<id:\d+>' => 'checkout/success',
                 // Старые ссылки /site/... (до выноса в SellerController)
                 'site/register-brand' => 'seller/register-brand',
                 'site/brand-dashboard' => 'seller/brand-dashboard',

@@ -298,6 +298,13 @@ class SiteController extends Controller
             ->orderBy(['size' => SORT_ASC])
             ->all();
 
+        $features = (new Query())
+            ->select(['name', 'value'])
+            ->from('product_features')
+            ->where(['product_id' => (int) $id])
+            ->orderBy(['sort_order' => SORT_ASC, 'id' => SORT_ASC])
+            ->all();
+
         $recommended = (new Query())
             ->select([
                 'p.id',
@@ -328,6 +335,7 @@ class SiteController extends Controller
             'product' => $product,
             'images' => $images,
             'sizes' => $sizes,
+            'features' => $features,
             'recommended' => $recommended,
             'isFavorite' => $this->isProductFavorite((int) $id),
             'favoriteProductIds' => $this->favoriteProductIds(),

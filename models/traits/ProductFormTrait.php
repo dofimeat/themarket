@@ -12,6 +12,46 @@ trait ProductFormTrait
         }
     }
 
+    public function validateFeatures($attribute): void
+    {
+        $rows = $this->normalizeFeaturesInput();
+        foreach ($rows as $i => $row) {
+            if ($row['name'] === '' && $row['value'] !== '') {
+                $this->addError($attribute, 'Укажите название характеристики в строке ' . ($i + 1) . '.');
+                return;
+            }
+            if ($row['value'] === '' && $row['name'] !== '') {
+                $this->addError($attribute, 'Укажите значение характеристики в строке ' . ($i + 1) . '.');
+                return;
+            }
+        }
+    }
+
+    /**
+     * @return array<int, array{name: string, value: string, id: ?int}>
+     */
+    public function normalizeFeaturesInput(): array
+    {
+        $out = [];
+        foreach ($this->features as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $name = trim((string) ($row['name'] ?? ''));
+            $value = trim((string) ($row['value'] ?? ''));
+            $id = isset($row['id']) && $row['id'] !== '' ? (int) $row['id'] : null;
+            if ($name === '' && $value === '' && $id === null) {
+                continue;
+            }
+            $out[] = [
+                'id' => $id > 0 ? $id : null,
+                'name' => $name,
+                'value' => $value,
+            ];
+        }
+        return $out;
+    }
+
     public function validateSizes($attribute): void
     {
         $rows = $this->normalizeSizesInput();

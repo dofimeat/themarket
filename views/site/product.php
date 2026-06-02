@@ -3,16 +3,19 @@
 /** @var array $product */
 /** @var array $images */
 /** @var array $sizes */
+/** @var array $features */
 /** @var array $recommended */
 /** @var bool $isFavorite */
 /** @var int[] $favoriteProductIds */
 
+use app\widgets\Alert;
 use yii\helpers\Html;
 use yii\helpers\Url;
 
 $this->title = (string) ($product['name'] ?? 'Товар');
 $images = $images ?? [];
 $sizes = $sizes ?? [];
+$features = $features ?? [];
 $recommended = $recommended ?? [];
 $isFavorite = (bool) ($isFavorite ?? false);
 $favoriteProductIds = array_map('intval', $favoriteProductIds ?? []);
@@ -71,6 +74,7 @@ JS
 ?>
 
 <div class="home-wrap product-view-wrap">
+    <?= Alert::widget() ?>
     <section class="product-centered">
         <div class="product-main">
             <div class="product-media">
@@ -131,7 +135,7 @@ JS
 
                 <div class="product-field">
                     <div class="product-label">Размер:</div>
-                    <select class="form-select product-select" aria-label="Размер" name="size">
+                    <select class="form-select product-select" aria-label="Размер" name="size" id="product-size-select">
                         <?php if (empty($sizes)): ?>
                             <option value="" selected>—</option>
                         <?php else: ?>
@@ -153,7 +157,11 @@ JS
                 </div>
 
                 <div class="product-actions-stack">
-                    <button class="btn product-add" type="button">Добавить в корзину</button>
+                    <button class="btn product-add" type="button" id="product-add-to-cart"
+                        data-product-id="<?= (int) ($product['id'] ?? 0) ?>"
+                        data-csrf="<?= Yii::$app->request->csrfToken ?>">
+                        Добавить в корзину
+                    </button>
                 </div>
 
                 <?php
@@ -183,12 +191,27 @@ JS
 
                 <div class="product-section">
                     <div class="product-section-title">Характеристики:</div>
-                    <ul class="product-specs-list">
-                        <li>Материал: 100% Хлопок / Техническая ткань</li>
-                        <li>Цвет: Белый / Антрацит</li>
-                        <li>Ручная работа</li>
-                        <li>Пол: унисекс</li>
-                    </ul>
+                    <?php if (!empty($features)): ?>
+                        <ul class="product-specs-list">
+                            <?php foreach ($features as $feat): ?>
+                                <?php
+                                $featName = trim((string) ($feat['name'] ?? ''));
+                                $featValue = trim((string) ($feat['value'] ?? ''));
+                                if ($featName === '' && $featValue === '') {
+                                    continue;
+                                }
+                                ?>
+                                <li>
+                                    <?= Html::encode($featName) ?>
+                                    <?php if ($featName !== '' && $featValue !== ''): ?>:
+                                    <?php endif; ?>
+                                    <?= Html::encode($featValue) ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else: ?>
+                        <div class="product-section-text" style="color: #999;">Характеристики не указаны</div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -226,3 +249,69 @@ JS
         <?php endif; ?>
     </section>
 </div>
+<script>
+(function(){
+    var btn = document.getElementById('product-add-to-cart');
+    var sizeSelect = document.getElementById('product-size-select');
+    if (!btn) return;
+
+    btn.addEventListener('click', function(){
+        var productId = btn.getAttribute('data-product-id');
+        var csrf = btn.getAttribute('data-csrf');
+        var size = sizeSelect ? sizeSelect.value : '';
+
+        btn.disabled = true;
+        btn.textContent = 'Добавление…';
+
+        var fd = new FormData();
+        fd.append('product_id', productId);
+        fd.append('size', size);
+        fd.append('quantity', 1);
+        fd.append('_csrf', csrf);
+
+        fetch('<?= Url::to(['/cart/add']) ?>', { method: 'POST', body: fd })
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                if (d.success) {
+                    btn.textContent = '✓ В корзине';
+                    showFlashAlert('success', 'Товар «' + document.querySelector('.product-name').textContent + '» добавлен в корзину');
+                    if (window.updateCartBadge) window.updateCartBadge();
+                    setTimeout(function(){
+                        btn.disabled = false;
+                        btn.textContent = 'Добавить в корзину';
+                    }, 2000);
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = 'Добавить в корзину';
+                    showFlashAlert('danger', d.error || 'Ошибка');
+                }
+            })
+            .catch(function(){
+                btn.disabled = false;
+                btn.textContent = 'Добавить в корзину';
+                showFlashAlert('danger', 'Ошибка соединения');
+            });
+    });
+
+    function showFlashAlert(type, msg) {
+        var wrap = document.querySelector('.home-wrap.product-view-wrap');
+        var existing = wrap.querySelector('.alert-flash');
+        if (existing) existing.remove();
+
+        var alert = document.createElement('div');
+        alert.className = 'alert alert-' + type + ' alert-dismissible fade show alert-flash';
+        alert.setAttribute('role', 'alert');
+        alert.innerHTML = msg + '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+
+        var firstChild = wrap.querySelector('section, .product-centered');
+        wrap.insertBefore(alert, firstChild);
+
+        setTimeout(function(){
+            if (alert.parentNode) {
+                alert.classList.remove('show');
+                setTimeout(function(){ alert.remove(); }, 300);
+            }
+        }, 4000);
+    }
+})();
+</script>

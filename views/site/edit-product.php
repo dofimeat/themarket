@@ -19,6 +19,7 @@ $this->title = 'Редактировать товар';
 $newFilesId = 'seller-edit-new-images';
 $this->registerJsFile('@web/js/seller-product-sizes.js', ['depends' => [\yii\web\YiiAsset::class]]);
 $this->registerJs('initSellerProductSizes({formName: "ProductEditForm"});', \yii\web\View::POS_END);
+$this->registerJs('initSellerProductFeatures({formName: "ProductEditForm"});', \yii\web\View::POS_END);
 $this->registerJs(<<<JS
 (function () {
     var newInput = document.getElementById('{$newFilesId}');
@@ -193,6 +194,44 @@ JS
                 <?= Html::error($model, 'sizes', ['class' => 'seller-add-field-error']) ?>
             </div>
 
+            <div class="seller-edit-sizes-block card-like">
+                <div class="seller-edit-sizes-head">
+                    <div class="seller-add-section-label">Характеристики</div>
+                    <button type="button" class="seller-edit-size-add" id="seller-edit-add-feature">+ Характеристика</button>
+                </div>
+                <div id="seller-edit-features" class="seller-edit-features">
+                    <?php foreach ($model->features as $i => $featRow): ?>
+                        <div class="seller-edit-feature-row">
+                            <?= Html::hiddenInput(
+                                "ProductEditForm[features][{$i}][id]",
+                                $featRow['id'] ?? '',
+                                ['data-feature-id' => true]
+                            ) ?>
+                            <?= Html::textInput(
+                                "ProductEditForm[features][{$i}][name]",
+                                $featRow['name'] ?? '',
+                                [
+                                    'class' => 'form-control seller-add-input',
+                                    'placeholder' => 'Название (Материал, Цвет…)',
+                                    'data-feature-name' => true,
+                                ]
+                            ) ?>
+                            <?= Html::textInput(
+                                "ProductEditForm[features][{$i}][value]",
+                                $featRow['value'] ?? '',
+                                [
+                                    'class' => 'form-control seller-add-input',
+                                    'placeholder' => 'Значение (Хлопок 100%…)',
+                                    'data-feature-value' => true,
+                                ]
+                            ) ?>
+                            <button type="button" class="seller-edit-size-remove" data-remove-feature aria-label="Удалить характеристику">×</button>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <?= Html::error($model, 'features', ['class' => 'seller-add-field-error']) ?>
+            </div>
+
             <div class="seller-add-brand-box card-like">
                 <?php if ($brandLogo !== ''): ?>
                     <div class="seller-add-brand-logo-wrap">
@@ -226,12 +265,33 @@ JS
     <?php ActiveForm::end(); ?>
 
     <div class="seller-edit-archive-wrap">
-        <?php $isActive = ($productStatus ?? 'active') === 'active'; ?>
-        <?= Html::beginForm(['seller/toggle-product-status', 'id' => $productId], 'post', ['class' => 'seller-edit-archive-form']) ?>
-            <?= Html::submitButton(
-                $isActive ? 'Перенести в архив' : 'Вернуть в активные',
-                ['class' => 'seller-edit-archive-btn']
-            ) ?>
-        <?= Html::endForm() ?>
+        <?php
+        $status = $productStatus ?? \app\models\Product::STATUS_PUBLISHED;
+        $canArchive = $status === \app\models\Product::STATUS_PUBLISHED;
+        $canSubmitForModeration = $status === \app\models\Product::STATUS_DRAFT;
+        ?>
+        <?php if ($canArchive): ?>
+            <?= Html::beginForm(['seller/toggle-product-status', 'id' => $productId], 'post', ['class' => 'seller-edit-archive-form']) ?>
+                <?= Html::submitButton(
+                    'Перенести в архив',
+                    ['class' => 'seller-edit-archive-btn']
+                ) ?>
+            <?= Html::endForm() ?>
+        <?php elseif ($canSubmitForModeration): ?>
+            <?= Html::beginForm(['seller/toggle-product-status', 'id' => $productId], 'post', ['class' => 'seller-edit-archive-form']) ?>
+                <?= Html::submitButton(
+                    'Отправить на модерацию',
+                    ['class' => 'seller-edit-archive-btn seller-edit-archive-btn--moderation']
+                ) ?>
+            <?= Html::endForm() ?>
+        <?php elseif ($status === \app\models\Product::STATUS_PENDING): ?>
+            <div class="seller-edit-status-notice seller-edit-status-notice--pending">
+                Товар находится на модерации
+            </div>
+        <?php elseif ($status === \app\models\Product::STATUS_REJECTED): ?>
+            <div class="seller-edit-status-notice seller-edit-status-notice--rejected">
+                Товар отклонён администратором
+            </div>
+        <?php endif; ?>
     </div>
 </div>

@@ -2,6 +2,7 @@
 
 namespace app\models;
 
+use app\models\ProductFeature;
 use app\models\traits\ProductFormTrait;
 use Yii;
 use yii\base\Model;
@@ -30,6 +31,9 @@ class ProductEditForm extends Model
     /** @var array<int, array<string, mixed>> */
     public $sizes = [];
 
+    /** @var array<int, array<string, mixed>> */
+    public $features = [];
+
     /** @var UploadedFile[]|null */
     public $newImageFiles;
 
@@ -48,6 +52,7 @@ class ProductEditForm extends Model
             ['deleteImageIds', 'each', 'rule' => ['integer', 'min' => 1]],
             ['mainImageId', 'safe'],
             ['sizes', 'validateSizes'],
+            ['features', 'validateFeatures'],
             [
                 ['newImageFiles'],
                 'file',
@@ -95,6 +100,18 @@ class ProductEditForm extends Model
         }
         if ($this->sizes === []) {
             $this->sizes[] = ['id' => '', 'size' => '', 'quantity' => 1];
+        }
+
+        $this->features = [];
+        foreach (ProductFeature::findForProduct($productId) as $feat) {
+            $this->features[] = [
+                'id' => $feat->id,
+                'name' => (string) $feat->name,
+                'value' => (string) $feat->value,
+            ];
+        }
+        if ($this->features === []) {
+            $this->features[] = ['id' => '', 'name' => '', 'value' => ''];
         }
 
         foreach ($this->existingImages as $img) {
@@ -165,6 +182,7 @@ class ProductEditForm extends Model
 
             $newImageIds = $this->saveNewImages($productId, $files);
             $this->syncSizes($productId);
+            $this->syncFeatures($productId);
             $this->applyMainImage($productId, $newImageIds);
 
             $transaction->commit();
@@ -262,6 +280,54 @@ class ProductEditForm extends Model
             ]);
         } else {
             ProductSize::deleteAll(['product_id' => $productId]);
+        }
+    }
+
+    private function syncFeatures(int $productId): void
+    {
+        $rows = $this->normalizeFeaturesInput();
+        $keepIds = [];
+        $sortOrder = 0;
+
+        foreach ($rows as $row) {
+            if ($row['name'] === '' && $row['value'] === '') {
+                continue;
+            }
+            if ($row['id'] !== null) {
+                $featureModel = ProductFeature::findOne(['id' => $row['id'], 'product_id' => $productId]);
+                if ($featureModel !== null) {
+                    $featureModel->name = $row['name'];
+                    $featureModel->value = $row['value'];
+                    if (ProductFeature::hasSortOrderColumn()) {
+                        $featureModel->sort_order = $sortOrder;
+                    }
+                    $featureModel->save(false);
+                    $keepIds[] = $row['id'];
+                    $sortOrder++;
+                    continue;
+                }
+            }
+
+            $featureModel = new ProductFeature();
+            $featureModel->product_id = $productId;
+            $featureModel->name = $row['name'];
+            $featureModel->value = $row['value'];
+            if (ProductFeature::hasSortOrderColumn()) {
+                $featureModel->sort_order = $sortOrder;
+            }
+            $featureModel->save(false);
+            $keepIds[] = (int) $featureModel->id;
+            $sortOrder++;
+        }
+
+        if ($keepIds !== []) {
+            ProductFeature::deleteAll([
+                'and',
+                ['product_id' => $productId],
+                ['not in', 'id', $keepIds],
+            ]);
+        } else {
+            ProductFeature::deleteAll(['product_id' => $productId]);
         }
     }
 

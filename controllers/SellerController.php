@@ -264,22 +264,43 @@ class SellerController extends Controller
         }
 
         $current = (string) ($product->status ?? Product::STATUS_PUBLISHED);
-        if ($current === Product::STATUS_PUBLISHED || $current === Product::STATUS_DRAFT) {
-            $next = $current === Product::STATUS_PUBLISHED ? Product::STATUS_DRAFT : Product::STATUS_PUBLISHED;
+
+        // Determine next status based on current state
+        if ($current === Product::STATUS_PUBLISHED) {
+            // Published → Draft (archive by user)
+            $next = Product::STATUS_DRAFT;
+            $flashType = 'success';
+            $flashMsg = 'Товар перенесён в архив.';
+        } elseif ($current === Product::STATUS_DRAFT) {
+            // Draft → Pending (submit for moderation, NOT directly to published)
+            $next = Product::STATUS_PENDING;
+            $flashType = 'success';
+            $flashMsg = 'Товар отправлен на модерацию.';
         } else {
+            // Pending or Rejected → cannot change status
             $next = $current;
+            $flashType = 'warning';
+            $flashMsg = $current === Product::STATUS_PENDING
+                ? 'Товар находится на модерации. Изменение статуса недоступно.'
+                : 'Товар отклонён. Обратитесь к администратору.';
         }
+
         $product->status = $next;
         $product->save(false);
 
-        Yii::$app->session->setFlash(
-            'success',
-            $next === Product::STATUS_PUBLISHED ? 'Товар снова в активных.' : 'Товар перенесён в архив.'
-        );
+        Yii::$app->session->setFlash($flashType, $flashMsg);
+
+        // Determine which list to redirect to
+        $list = 'active';
+        if ($next === Product::STATUS_DRAFT) {
+            $list = 'archive';
+        } elseif ($next === Product::STATUS_PENDING || $next === Product::STATUS_REJECTED) {
+            $list = 'pending';
+        }
 
         return $this->redirect([
             'brand-dashboard',
-            'list' => $next === Product::STATUS_PUBLISHED ? 'active' : 'archive',
+            'list' => $list,
         ]);
     }
 }

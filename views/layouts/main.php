@@ -66,8 +66,9 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
                         <img src="<?= Html::encode(Url::to('@web/images/user.svg')) ?>" alt="" width="28" height="28" decoding="async">
                     </a>
                 <?php endif; ?>
-                <a href="#" class="home-action-icon" aria-label="Корзина">
+                <a href="<?= Html::encode(Url::to(['/cart'])) ?>" class="home-action-icon home-cart-link" aria-label="Корзина">
                     <img src="<?= Html::encode(Url::to('@web/images/Shopping_Basket.svg')) ?>" alt="" width="28" height="28" decoding="async">
+                    <span class="home-cart-badge" id="cart-badge" style="display:none;"></span>
                 </a>
             </div>
         </div>
@@ -131,6 +132,27 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
             wrap.classList.remove('is-open');
         }
     });
+})();
+</script>
+<script>
+(function(){
+    function updateCartBadge() {
+        var badge = document.getElementById('cart-badge');
+        if (!badge) return;
+        fetch('<?= Html::encode(Url::to(['/cart/count'])) ?>')
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                if (d.count > 0) {
+                    badge.textContent = d.count > 99 ? '99+' : d.count;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            })
+            .catch(function(){});
+    }
+    updateCartBadge();
+    window.updateCartBadge = updateCartBadge;
 })();
 </script>
 </body>

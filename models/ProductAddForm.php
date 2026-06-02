@@ -2,6 +2,7 @@
 
 namespace app\models;
 
+use app\models\ProductFeature;
 use app\models\traits\ProductFormTrait;
 use Yii;
 use yii\base\Model;
@@ -26,6 +27,9 @@ class ProductAddForm extends Model
     /** @var array<int, array<string, mixed>> */
     public $sizes = [['id' => '', 'size' => '', 'quantity' => 1]];
 
+    /** @var array<int, array<string, mixed>> */
+    public $features = [['id' => '', 'name' => '', 'value' => '']];
+
     /** @var UploadedFile[]|null */
     public $newImageFiles;
 
@@ -34,6 +38,9 @@ class ProductAddForm extends Model
         parent::init();
         if ($this->sizes === []) {
             $this->sizes = [['id' => '', 'size' => '', 'quantity' => 1]];
+        }
+        if ($this->features === []) {
+            $this->features = [['id' => '', 'name' => '', 'value' => '']];
         }
     }
 
@@ -47,6 +54,7 @@ class ProductAddForm extends Model
             ['price', 'validatePrice'],
             ['mainImageId', 'safe'],
             ['sizes', 'validateSizes'],
+            ['features', 'validateFeatures'],
             [
                 ['newImageFiles'],
                 'file',
@@ -112,6 +120,7 @@ class ProductAddForm extends Model
             $productId = (int) $product->id;
             $newImageIds = $this->saveNewImages($productId, $files);
             $this->syncSizes($productId);
+            $this->syncFeatures($productId);
             $this->applyMainImage($productId, $newImageIds);
 
             $transaction->commit();
@@ -171,6 +180,24 @@ class ProductAddForm extends Model
             $sizeModel->size = $row['size'];
             $sizeModel->quantity = $row['quantity'];
             $sizeModel->save(false);
+        }
+    }
+
+    private function syncFeatures(int $productId): void
+    {
+        $sortOrder = 0;
+        foreach ($this->normalizeFeaturesInput() as $row) {
+            if ($row['name'] === '' && $row['value'] === '') {
+                continue;
+            }
+            $feature = new ProductFeature();
+            $feature->product_id = $productId;
+            $feature->name = $row['name'];
+            $feature->value = $row['value'];
+            if (ProductFeature::hasSortOrderColumn()) {
+                $feature->sort_order = $sortOrder++;
+            }
+            $feature->save(false);
         }
     }
 
