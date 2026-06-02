@@ -116,13 +116,51 @@ class SiteController extends Controller
     }
 
     /**
-     * Catalog page (4 latest active products).
+     * Catalog page with filtering and sorting.
      *
      * @return string
      */
     public function actionCatalog()
     {
-        $products = (new Query())
+        // Filter params from GET
+        $filterSizes = (array) Yii::$app->request->get('size', []);
+        $filterBrands = (array) Yii::$app->request->get('brand', []);
+        $priceMin = Yii::$app->request->get('price_min', '');
+        $priceMax = Yii::$app->request->get('price_max', '');
+        $sort = (string) Yii::$app->request->get('sort', 'newest');
+
+        // Available filter options
+        $availableSizes = (new Query())
+            ->select(['size'])
+            ->from('product_sizes')
+            ->innerJoin(['p' => 'products'], 'p.id = product_sizes.product_id')
+            ->where(['p.status' => 'published'])
+            ->distinct()
+            ->orderBy(['size' => SORT_ASC])
+            ->column();
+
+        $availableBrands = (new Query())
+            ->select(['b.id', 'b.name'])
+            ->from(['b' => 'brands'])
+            ->innerJoin(['p' => 'products'], 'p.brand_id = b.id')
+            ->where(['p.status' => 'published'])
+            ->andWhere(['b.status' => Brand::STATUS_APPROVED])
+            ->andWhere(['b.is_blocked' => 0])
+            ->distinct()
+            ->orderBy(['b.name' => SORT_ASC])
+            ->all();
+
+        $priceRange = (new Query())
+            ->select([
+                'min_price' => 'MIN(p.price)',
+                'max_price' => 'MAX(p.price)',
+            ])
+            ->from(['p' => 'products'])
+            ->where(['p.status' => 'published'])
+            ->one();
+
+        // Build product query with filters
+        $query = (new Query())
             ->select([
                 'p.id',
                 'p.name',
@@ -142,12 +180,76 @@ class SiteController extends Controller
                     WHERE pi.product_id = p.id
                 )'
             )
-            ->where(['p.status' => 'published'])
-            ->orderBy(['p.created_at' => SORT_DESC])
-            ->all();
+            ->where(['p.status' => 'published']);
+
+        // Apply size filter
+        if (!empty($filterSizes)) {
+            $safeSizes = array_map('strval', (array) $filterSizes);
+            $sizeProductIds = (new Query())
+                ->select(['product_id'])
+                ->from('product_sizes')
+                ->where(['in', 'size', $safeSizes])
+                ->column();
+            if (empty($sizeProductIds)) {
+                $query->andWhere('1=0');
+            } else {
+                $query->andWhere(['in', 'p.id', $sizeProductIds]);
+            }
+        }
+
+        // Apply brand filter
+        if (!empty($filterBrands)) {
+            $safeBrands = array_map('intval', (array) $filterBrands);
+            $query->andWhere(['in', 'p.brand_id', $safeBrands]);
+        }
+
+        // Apply price filter
+        $minP = is_numeric($priceMin) ? (float) $priceMin : null;
+        $maxP = is_numeric($priceMax) ? (float) $priceMax : null;
+        if ($minP !== null && $minP > 0) {
+            $query->andWhere(['>=', 'p.price', $minP]);
+        }
+        if ($maxP !== null && $maxP > 0) {
+            $query->andWhere(['<=', 'p.price', $maxP]);
+        }
+
+        // Sorting
+        switch ($sort) {
+            case 'price_asc':
+                $query->orderBy(['p.price' => SORT_ASC]);
+                break;
+            case 'price_desc':
+                $query->orderBy(['p.price' => SORT_DESC]);
+                break;
+            case 'name':
+                $query->orderBy(['p.name' => SORT_ASC]);
+                break;
+            case 'newest':
+            default:
+                $query->orderBy(['p.created_at' => SORT_DESC]);
+                break;
+        }
+
+        $products = $query->all();
+
+        // Count active filters
+        $activeFilterCount = 0;
+        if (!empty($filterSizes)) $activeFilterCount++;
+        if (!empty($filterBrands)) $activeFilterCount++;
+        if ($minP !== null && $minP > 0) $activeFilterCount++;
+        if ($maxP !== null && $maxP > 0) $activeFilterCount++;
 
         return $this->render('catalog', [
             'products' => $products,
+            'availableSizes' => $availableSizes,
+            'availableBrands' => $availableBrands,
+            'priceRange' => $priceRange,
+            'filterSizes' => $filterSizes,
+            'filterBrands' => $filterBrands,
+            'priceMin' => $priceMin,
+            'priceMax' => $priceMax,
+            'sort' => $sort,
+            'activeFilterCount' => $activeFilterCount,
             'favoriteProductIds' => $this->favoriteProductIds(),
         ]);
     }
