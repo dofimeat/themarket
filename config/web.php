@@ -55,6 +55,7 @@ $config = [
             'rules' => [
                 'catalog' => 'site/catalog',
                 'search' => 'site/search',
+                'faq' => 'site/faq',
                 'admin' => 'admin/index',
                 'admin/users' => 'admin/users',
                 'admin/brands' => 'admin/brands',
