@@ -78,6 +78,7 @@ $config = [
                 'cart/count' => 'cart/count',
                 'checkout' => 'checkout/index',
                 'checkout/success/<id:\d+>' => 'checkout/success',
+                'review/add' => 'review/add',
                 // Старые ссылки /site/... (до выноса в SellerController)
                 'site/register-brand' => 'seller/register-brand',
                 'site/brand-dashboard' => 'seller/brand-dashboard',

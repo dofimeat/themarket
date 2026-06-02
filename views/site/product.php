@@ -5,6 +5,10 @@
 /** @var array $sizes */
 /** @var array $features */
 /** @var array $recommended */
+/** @var array $reviews */
+/** @var float $avgRating */
+/** @var int $reviewCount */
+/** @var bool $canReview */
 /** @var bool $isFavorite */
 /** @var int[] $favoriteProductIds */
 
@@ -18,6 +22,10 @@ $sizes = $sizes ?? [];
 $features = $features ?? [];
 $recommended = $recommended ?? [];
 $isFavorite = (bool) ($isFavorite ?? false);
+$reviews = $reviews ?? [];
+$avgRating = (float) ($avgRating ?? 0);
+$reviewCount = (int) ($reviewCount ?? 0);
+$canReview = (bool) ($canReview ?? false);
 $favoriteProductIds = array_map('intval', $favoriteProductIds ?? []);
 
 $brandName = trim((string) ($product['brand_name'] ?? ''));
@@ -216,6 +224,104 @@ JS
             </div>
         </div>
 
+        <!-- Reviews section -->
+        <div class="reviews-section" style="width: 100%; margin-top: 80px; border-top: 1px solid #F0F0F0; padding-top: 48px;">
+            <div class="reviews-header">
+                <div class="reviews-header-left">
+                    <h2 class="reviews-title">Отзывы</h2>
+                    <?php if ($reviewCount > 0): ?>
+                        <div class="reviews-summary">
+                            <div class="reviews-stars-large">
+                                <?php for ($i = 1; $i <= 5; $i++): ?>
+                                    <span class="review-star <?= $i <= round($avgRating) ? 'review-star--filled' : '' ?>">★</span>
+                                <?php endfor; ?>
+                            </div>
+                            <span class="reviews-avg"><?= $avgRating ?></span>
+                            <span class="reviews-count"><?= $reviewCount ?> <?= $reviewCount === 1 ? 'отзыв' : ($reviewCount < 5 ? 'отзыва' : 'отзывов') ?></span>
+                        </div>
+                    <?php else: ?>
+                        <div class="reviews-summary">
+                            <span class="reviews-count">Пока нет отзывов</span>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <?php if ($canReview): ?>
+                <div class="review-form-wrap card-like">
+                    <div class="review-form-title">Оставить отзыв</div>
+                    <form id="review-form" class="review-form">
+                        <input type="hidden" name="product_id" value="<?= (int) ($product['id'] ?? 0) ?>">
+                        <input type="hidden" name="_csrf" value="<?= Yii::$app->request->csrfToken ?>">
+
+                        <div class="review-form-rating">
+                            <label class="review-form-label">Оценка:</label>
+                            <div class="review-rating-input" id="review-rating-input">
+                                <?php for ($i = 5; $i >= 1; $i--): ?>
+                                    <input type="radio" name="rating" value="<?= $i ?>" id="star-<?= $i ?>" <?= $i === 5 ? 'checked' : '' ?>>
+                                    <label for="star-<?= $i ?>" class="review-star-label">★</label>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+
+                        <div class="review-form-field">
+                            <label class="review-form-label" for="review-text">Ваш отзыв:</label>
+                            <textarea id="review-text" name="text" class="review-textarea" rows="4" placeholder="Расскажите о товаре…" required></textarea>
+                        </div>
+
+                        <button type="submit" class="btn review-submit-btn" id="review-submit-btn">Отправить отзыв</button>
+                        <div id="review-form-msg" class="review-form-msg"></div>
+                    </form>
+                </div>
+            <?php elseif (!Yii::$app->user->isGuest && !$canReview && $reviewCount > 0): ?>
+                <!-- User already reviewed or hasn't purchased -->
+            <?php endif; ?>
+
+            <div class="reviews-list" id="reviews-list">
+                <?php foreach ($reviews as $review): ?>
+                    <?php
+                    $rFirstName = trim((string) ($review['user_first_name'] ?? ''));
+                    $rLastName = trim((string) ($review['user_last_name'] ?? ''));
+                    $rName = trim($rFirstName . ' ' . $rLastName);
+                    if ($rName === '') {
+                        $rName = (string) ($review['user_name'] ?? '');
+                    }
+                    if ($rName === '') {
+                        $email = (string) ($review['user_email'] ?? '');
+                        $rName = $email !== '' ? strstr($email, '@', true) : 'Пользователь';
+                    }
+                    $rAvatar = trim((string) ($review['user_avatar'] ?? ''));
+                    if ($rAvatar === '') {
+                        $rAvatar = \app\models\User::DEFAULT_AVATAR;
+                    }
+                    $rRating = (int) ($review['rating'] ?? 5);
+                    $rDate = '';
+                    if (!empty($review['created_at'])) {
+                        $ts = strtotime($review['created_at']);
+                        if ($ts !== false) {
+                            $rDate = date('d.m.Y H:i', $ts);
+                        }
+                    }
+                    ?>
+                    <div class="review-card">
+                        <div class="review-card-header">
+                            <img src="<?= Html::encode(Url::to('@web/' . ltrim($rAvatar, '/'))) ?>" alt="<?= Html::encode($rName) ?>" class="review-avatar">
+                            <div class="review-meta">
+                                <div class="review-author"><?= Html::encode($rName) ?></div>
+                                <div class="review-date"><?= Html::encode($rDate) ?></div>
+                            </div>
+                            <div class="review-card-stars">
+                                <?php for ($i = 1; $i <= 5; $i++): ?>
+                                    <span class="review-star <?= $i <= $rRating ? 'review-star--filled' : '' ?>">★</span>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+                        <div class="review-text"><?= nl2br(Html::encode((string) ($review['text'] ?? ''))) ?></div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
         <?php if (!empty($recommended)): ?>
             <div class="product-reco" style="width: 100%; margin-top: 120px; border-top: 1px solid #F0F0F0; padding-top: 64px;">
                 <div class="product-reco-title" style="font-size: 14px; color: #999; margin-bottom: 32px;">Вам может понравиться</div>
@@ -313,5 +419,70 @@ JS
             }
         }, 4000);
     }
+})();
+</script>
+<script>
+(function(){
+    var form = document.getElementById('review-form');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        var btn = document.getElementById('review-submit-btn');
+        var msgEl = document.getElementById('review-form-msg');
+        var text = document.getElementById('review-text').value.trim();
+
+        if (text === '') {
+            msgEl.textContent = 'Напишите текст отзыва.';
+            msgEl.className = 'review-form-msg review-form-msg--error';
+            return;
+        }
+
+        var fd = new FormData(form);
+        btn.disabled = true;
+        btn.textContent = 'Отправка…';
+        msgEl.textContent = '';
+        msgEl.className = 'review-form-msg';
+
+        fetch('<?= Url::to(['/review/add']) ?>', { method: 'POST', body: fd })
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                if (d.success) {
+                    // Hide form, show success
+                    form.closest('.review-form-wrap').innerHTML = '<div class="alert alert-success">Спасибо за ваш отзыв!</div>';
+
+                    // Prepend new review to list
+                    var rv = d.review;
+                    var list = document.getElementById('reviews-list');
+                    var card = document.createElement('div');
+                    card.className = 'review-card';
+
+                    var starsHtml = '';
+                    for (var i = 1; i <= 5; i++) {
+                        starsHtml += '<span class="review-star ' + (i <= rv.rating ? 'review-star--filled' : '') + '">\u2605</span>';
+                    }
+
+                    card.innerHTML = '<div class="review-card-header">' +
+                        '<img src="' + (rv.user_avatar ? '<?= Url::to('@web/') ?>' + rv.user_avatar : '<?= Url::to('@web/' . \app\models\User::DEFAULT_AVATAR) ?>') + '" alt="" class="review-avatar">' +
+                        '<div class="review-meta"><div class="review-author">' + rv.user_name + '</div><div class="review-date">' + rv.created_at + '</div></div>' +
+                        '<div class="review-card-stars">' + starsHtml + '</div></div>' +
+                        '<div class="review-text">' + rv.text.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</div>';
+
+                    list.insertBefore(card, list.firstChild);
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = 'Отправить отзыв';
+                    msgEl.textContent = d.error || 'Ошибка';
+                    msgEl.className = 'review-form-msg review-form-msg--error';
+                }
+            })
+            .catch(function(){
+                btn.disabled = false;
+                btn.textContent = 'Отправить отзыв';
+                msgEl.textContent = 'Ошибка соединения';
+                msgEl.className = 'review-form-msg review-form-msg--error';
+            });
+    });
 })();
 </script>

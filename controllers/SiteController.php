@@ -331,12 +331,65 @@ class SiteController extends Controller
             ->limit(4)
             ->all();
 
+        // Reviews
+        $reviews = (new Query())
+            ->select([
+                'r.id',
+                'r.rating',
+                'r.text',
+                'r.created_at',
+                'user_name' => 'u.username',
+                'user_first_name' => 'u.first_name',
+                'user_last_name' => 'u.last_name',
+                'user_email' => 'u.email',
+                'user_avatar' => 'u.avatar',
+            ])
+            ->from(['r' => 'product_reviews'])
+            ->leftJoin(['u' => 'users'], 'u.id = r.user_id')
+            ->where(['r.product_id' => (int) $id])
+            ->orderBy(['r.created_at' => SORT_DESC])
+            ->all();
+
+        // Compute average rating
+        $avgRating = 0;
+        $reviewCount = count($reviews);
+        if ($reviewCount > 0) {
+            $totalRating = 0;
+            foreach ($reviews as $rv) {
+                $totalRating += (int) $rv['rating'];
+            }
+            $avgRating = round($totalRating / $reviewCount, 1);
+        }
+
+        // Check if current user can leave a review (purchased this product)
+        $canReview = false;
+        $hasReviewed = false;
+        if (!Yii::$app->user->isGuest) {
+            $uid = (int) Yii::$app->user->id;
+            $purchased = (new Query())
+                ->from(['oi' => 'order_items'])
+                ->innerJoin(['o' => 'orders'], 'o.id = oi.order_id')
+                ->where(['o.user_id' => $uid, 'oi.product_id' => (int) $id])
+                ->exists();
+            if ($purchased) {
+                $hasReviewed = (new Query())
+                    ->from('product_reviews')
+                    ->where(['user_id' => $uid, 'product_id' => (int) $id])
+                    ->exists();
+                $canReview = !$hasReviewed;
+            }
+        }
+
         return $this->render('product', [
             'product' => $product,
             'images' => $images,
             'sizes' => $sizes,
             'features' => $features,
             'recommended' => $recommended,
+            'reviews' => $reviews,
+            'avgRating' => $avgRating,
+            'reviewCount' => $reviewCount,
+            'canReview' => $canReview,
             'isFavorite' => $this->isProductFavorite((int) $id),
             'favoriteProductIds' => $this->favoriteProductIds(),
         ]);
