@@ -13,7 +13,6 @@ use yii\widgets\LinkPager;
 $this->title = 'Заказы';
 
 $statuses = [
-    Order::STATUS_NEW => 'Новый',
     Order::STATUS_PAID => 'Оплачен',
     Order::STATUS_SHIPPED => 'Отправлен',
     Order::STATUS_COMPLETED => 'Завершён',
