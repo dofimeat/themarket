@@ -173,9 +173,12 @@ if (empty($productSlides)) {
         <a href="<?= Url::to(['/site/brands']) ?>" class="pill">Все бренды</a>
     </div>
 
-    <?php
+<?php
     $brandData = $brands ?? [];
     $brandSlides = array_chunk($brandData, 4);
+    if (empty($brandSlides)) {
+        $brandSlides = [[]];
+    }
     ?>
 
     <div id="brandsCarousel" class="carousel slide brands-carousel" data-bs-ride="carousel" data-bs-interval="3500" data-bs-pause="false">
@@ -184,9 +187,14 @@ if (empty($productSlides)) {
                 <div class="carousel-item <?= $slideIndex === 0 ? 'active' : '' ?>">
                     <div class="brand-row">
                         <?php foreach ($slide as $brand): ?>
-                            <div class="brand-item">
-                                <img src="<?= Html::encode(Url::to('@web/' . ltrim($brand['logo'] ?? 'images/brand-placeholder.jpg', '/'))) ?>" alt="<?= Html::encode($brand['name']) ?>" width="168" height="112" loading="lazy" draggable="false" />
-                            </div>
+                            <a href="<?= Html::encode(Url::to(['/site/brand', 'id' => (int) $brand['id']])) ?>" class="brand-item">
+                                <?php 
+                                $logoSrc = !empty($brand['logo']) 
+                                    ? Url::to('@web/' . ltrim($brand['logo'], '/')) 
+                                    : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="168" height="112" viewBox="0 0 168 112"%3E%3Crect width="168" height="112" fill="%23f5f5f5"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" fill="%23999"%3E' . Html::encode($brand['name']) . '%3C/text%3E%3C/svg%3E';
+                                ?>
+                                <img src="<?= $logoSrc ?>" alt="<?= Html::encode($brand['name']) ?>" width="168" height="112" loading="lazy" draggable="false" />
+                            </a>
                         <?php endforeach; ?>
 
                         <?php for ($i = count($slide); $i < 4; $i++): ?>

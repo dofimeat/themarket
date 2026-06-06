@@ -3,7 +3,9 @@
 namespace app\controllers;
 
 use app\models\Brand;
+use app\models\Order;
 use app\models\Product;
+use app\models\ProductReview;
 use app\models\User;
 use Yii;
 use yii\data\Pagination;
@@ -47,6 +49,10 @@ class AdminController extends Controller
         $productCount = (int) Product::find()->count();
         $pendingBrands = (int) Brand::find()->where(['status' => Brand::STATUS_PENDING])->count();
         $pendingProducts = (int) Product::find()->where(['status' => Product::STATUS_PENDING])->count();
+        $orderCount = (int) Order::find()->count();
+        $pendingOrders = (int) Order::find()->where(['status' => Order::STATUS_NEW])->count();
+        $reviewCount = (int) ProductReview::find()->count();
+        $pendingReviews = (int) ProductReview::find()->where(['status' => ProductReview::STATUS_PENDING])->count();
 
         return $this->render('index', [
             'userCount' => $userCount,
@@ -54,6 +60,10 @@ class AdminController extends Controller
             'productCount' => $productCount,
             'pendingBrands' => $pendingBrands,
             'pendingProducts' => $pendingProducts,
+            'orderCount' => $orderCount,
+            'pendingOrders' => $pendingOrders,
+            'reviewCount' => $reviewCount,
+            'pendingReviews' => $pendingReviews,
         ]);
     }
 
@@ -357,5 +367,176 @@ class AdminController extends Controller
         ];
         Yii::$app->session->setFlash('success', 'Статус изменён на «' . ($labels[$status] ?? $status) . '».');
         return $this->redirect(['products']);
+    }
+
+    // ===========================
+    // Orders
+    // ===========================
+
+    public function actionOrders()
+    {
+        $query = Order::find()->with('items')->orderBy(['id' => SORT_DESC]);
+
+        $statusFilter = (string) Yii::$app->request->get('status', '');
+        $allowedStatuses = [
+            Order::STATUS_NEW,
+            Order::STATUS_PAID,
+            Order::STATUS_SHIPPED,
+            Order::STATUS_COMPLETED,
+            Order::STATUS_CANCELLED,
+        ];
+        if ($statusFilter !== '' && in_array($statusFilter, $allowedStatuses, true)) {
+            $query->andWhere(['status' => $statusFilter]);
+        }
+
+        $search = trim((string) Yii::$app->request->get('search', ''));
+        if ($search !== '') {
+            $query->andWhere([
+                'or',
+                ['like', 'email', $search],
+                ['like', 'first_name', $search],
+                ['like', 'last_name', $search],
+                ['like', 'phone', $search],
+            ]);
+        }
+
+        $countQuery = clone $query;
+        $pages = new Pagination([
+            'totalCount' => (int) $countQuery->count(),
+            'pageSize' => 20,
+        ]);
+        $orders = $query->offset($pages->offset)->limit($pages->limit)->all();
+
+        return $this->render('orders', [
+            'orders' => $orders,
+            'pages' => $pages,
+            'statusFilter' => $statusFilter,
+            'search' => $search,
+        ]);
+    }
+
+    public function actionOrderView(int $id)
+    {
+        $order = Order::find()->with('items')->where(['id' => $id])->one();
+        if ($order === null) {
+            throw new NotFoundHttpException('Заказ не найден.');
+        }
+
+        return $this->render('order-view', [
+            'order' => $order,
+        ]);
+    }
+
+    public function actionOrderStatus(int $id, string $status): Response
+    {
+        $order = Order::findOne($id);
+        if ($order === null) {
+            throw new NotFoundHttpException('Заказ не найден.');
+        }
+        $allowed = [
+            Order::STATUS_NEW,
+            Order::STATUS_PAID,
+            Order::STATUS_SHIPPED,
+            Order::STATUS_COMPLETED,
+            Order::STATUS_CANCELLED,
+        ];
+        if (!in_array($status, $allowed, true)) {
+            Yii::$app->session->setFlash('danger', 'Недопустимый статус.');
+            return $this->redirect(['orders']);
+        }
+        $order->status = $status;
+        $order->save(false);
+        Yii::$app->session->setFlash('success', 'Статус заказа изменён на «' . $order->getStatusLabel() . '».');
+        return $this->redirect(['order-view', 'id' => $order->id]);
+    }
+
+    // ===========================
+    // Reviews
+    // ===========================
+
+    public function actionReviews()
+    {
+        $query = (new Query())
+            ->select([
+                'r.id',
+                'r.product_id',
+                'r.user_id',
+                'r.rating',
+                'r.text',
+                'r.status',
+                'r.created_at',
+                'product_name' => 'p.name',
+                'user_email' => 'u.email',
+                'user_first_name' => 'u.first_name',
+                'user_last_name' => 'u.last_name',
+            ])
+            ->from(['r' => 'product_reviews'])
+            ->leftJoin(['p' => 'products'], 'p.id = r.product_id')
+            ->leftJoin(['u' => 'users'], 'u.id = r.user_id')
+            ->orderBy(['r.id' => SORT_DESC]);
+
+        $statusFilter = (string) Yii::$app->request->get('status', '');
+        if ($statusFilter !== '' && in_array($statusFilter, [ProductReview::STATUS_PENDING, ProductReview::STATUS_APPROVED, ProductReview::STATUS_REJECTED], true)) {
+            $query->andWhere(['r.status' => $statusFilter]);
+        }
+
+        $search = trim((string) Yii::$app->request->get('search', ''));
+        if ($search !== '') {
+            $query->andWhere([
+                'or',
+                ['like', 'r.text', $search],
+                ['like', 'p.name', $search],
+                ['like', 'u.email', $search],
+            ]);
+        }
+
+        $countQuery = clone $query;
+        $pages = new Pagination([
+            'totalCount' => (int) $countQuery->count(),
+            'pageSize' => 20,
+        ]);
+        $reviews = $query->offset($pages->offset)->limit($pages->limit)->all();
+
+        return $this->render('reviews', [
+            'reviews' => $reviews,
+            'pages' => $pages,
+            'statusFilter' => $statusFilter,
+            'search' => $search,
+        ]);
+    }
+
+    public function actionReviewApprove(int $id): Response
+    {
+        $review = ProductReview::findOne($id);
+        if ($review === null) {
+            throw new NotFoundHttpException('Отзыв не найден.');
+        }
+        $review->status = ProductReview::STATUS_APPROVED;
+        $review->save(false);
+        Yii::$app->session->setFlash('success', 'Отзыв одобрен.');
+        return $this->redirect(['reviews']);
+    }
+
+    public function actionReviewReject(int $id): Response
+    {
+        $review = ProductReview::findOne($id);
+        if ($review === null) {
+            throw new NotFoundHttpException('Отзыв не найден.');
+        }
+        $review->status = ProductReview::STATUS_REJECTED;
+        $review->save(false);
+        Yii::$app->session->setFlash('success', 'Отзыв отклонён.');
+        return $this->redirect(['reviews']);
+    }
+
+    public function actionReviewDelete(int $id): Response
+    {
+        $review = ProductReview::findOne($id);
+        if ($review === null) {
+            throw new NotFoundHttpException('Отзыв не найден.');
+        }
+        $review->delete();
+        Yii::$app->session->setFlash('success', 'Отзыв удалён.');
+        return $this->redirect(['reviews']);
     }
 }

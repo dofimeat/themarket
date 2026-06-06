@@ -63,8 +63,14 @@ class CheckoutController extends Controller
                 // Clear cart
                 CartController::setCart([]);
 
-                // Redirect to YooKassa or success
-                // TODO: YooKassa integration — for now go to success page
+                // Simulate YooKassa test-mode auto-payment: mark order as paid immediately
+                $order = Order::findOne($orderId);
+                if ($order) {
+                    $order->status = Order::STATUS_PAID;
+                    $order->payment_id = 'test_' . time() . '_' . $orderId;
+                    $order->save(false);
+                }
+
                 return $this->redirect(['/checkout/success', 'id' => $orderId]);
             }
             Yii::$app->session->setFlash('error', 'Не удалось оформить заказ. Попробуйте снова.');

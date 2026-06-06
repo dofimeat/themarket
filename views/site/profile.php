@@ -32,7 +32,24 @@ $orderStatusLabels = [
     'processing' => 'В обработке',
     'shipped' => 'Отправлен',
     'delivered' => 'Доставлен',
+    'completed' => 'Завершён',
     'cancelled' => 'Отменён',
+];
+
+$orderStatusCss = [
+    'new' => 'profile-order-status--new',
+    'paid' => 'profile-order-status--paid',
+    'processing' => 'profile-order-status--processing',
+    'shipped' => 'profile-order-status--shipped',
+    'delivered' => 'profile-order-status--delivered',
+    'completed' => 'profile-order-status--completed',
+    'cancelled' => 'profile-order-status--cancelled',
+];
+
+$deliveryLabels = [
+    'courier' => 'Курьер',
+    'pickup' => 'Самовывоз',
+    'post' => 'Почта',
 ];
 
 /** @var \app\models\User|null $identity */
@@ -143,7 +160,7 @@ $navClass = static function (string $name) use ($tab): string {
                     <?php endforeach; ?>
                 </div>
             <?php elseif ($tab === 'orders'): ?>
-                <h2 class="profile-panel-title">Заказы</h2>
+                <h2 class="profile-panel-title">Мои заказы</h2>
                 <?php if (empty($orders)): ?>
                     <div class="profile-empty-block">
                         <p class="profile-empty-title">История заказов пуста</p>
@@ -151,36 +168,48 @@ $navClass = static function (string $name) use ($tab): string {
                         <a class="profile-btn-catalog" href="<?= Html::encode(Url::to(['/site/catalog'])) ?>">Перейти в каталог</a>
                     </div>
                 <?php else: ?>
-                    <div class="profile-table-wrap">
-                        <table class="profile-table">
-                            <thead>
-                                <tr>
-                                    <th>№</th>
-                                    <th>Дата</th>
-                                    <th>Статус</th>
-                                    <th class="profile-table-num">Сумма</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($orders as $order): ?>
-                                    <?php
-                                    $st = (string) ($order['status'] ?? 'new');
-                                    $label = $orderStatusLabels[$st] ?? $st;
-                                    ?>
-                                    <tr>
-                                        <td>#<?= (int) ($order['id'] ?? 0) ?></td>
-                                        <td><?php
+                    <div class="profile-orders-list">
+                        <?php foreach ($orders as $order): ?>
+                            <?php
+                            $st = (string) ($order['status'] ?? 'new');
+                            $label = $orderStatusLabels[$st] ?? $st;
+                            $statusCss = $orderStatusCss[$st] ?? '';
+                            $delivery = $deliveryLabels[$order['delivery_method'] ?? ''] ?? ($order['delivery_method'] ?? '—');
+                            ?>
+                            <div class="profile-order-card card-like">
+                                <div class="profile-order-header">
+                                    <div class="profile-order-header-left">
+                                        <span class="profile-order-number">Заказ #<?= (int) ($order['id'] ?? 0) ?></span>
+                                        <span class="profile-order-status <?= Html::encode($statusCss) ?>"><?= Html::encode($label) ?></span>
+                                    </div>
+                                    <div class="profile-order-header-right">
+                                        <span class="profile-order-date"><?php
                                             $created = $order['created_at'] ?? null;
                                             echo $created !== null && $created !== ''
-                                                ? Html::encode(Yii::$app->formatter->asDatetime($created, 'php:d.m.Y H:i'))
+                                                ? Html::encode(Yii::$app->formatter->asDatetime($created, 'php:d.m.Y'))
                                                 : '—';
-                                        ?></td>
-                                        <td><?= Html::encode($label) ?></td>
-                                        <td class="profile-table-num"><?= Html::encode(number_format((float) ($order['total'] ?? 0), 2, ',', ' ')) ?> ₽</td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                                        ?></span>
+                                    </div>
+                                </div>
+                                <div class="profile-order-body">
+                                    <div class="profile-order-info">
+                                        <div class="profile-order-info-row">
+                                            <span class="profile-order-info-label">Доставка:</span>
+                                            <span class="profile-order-info-value"><?= Html::encode($delivery) ?></span>
+                                        </div>
+                                        <?php if (!empty($order['payment_id'])): ?>
+                                        <div class="profile-order-info-row">
+                                            <span class="profile-order-info-label">Оплата:</span>
+                                            <span class="profile-order-info-value">Оплачено</span>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="profile-order-total">
+                                        <?= Html::encode(number_format((float) ($order['total_price'] ?? 0), 0, '', ' ')) ?> ₽
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
             <?php elseif ($tab === 'favorites'): ?>

@@ -70,6 +70,12 @@ class ReviewController extends Controller
             ->one();
 
         if ($existing !== null) {
+            if ($existing->status === ProductReview::STATUS_PENDING) {
+                return ['success' => false, 'error' => 'Ваш отзыв уже отправлен на модерацию. Ожидайте публикации.'];
+            }
+            if ($existing->status === ProductReview::STATUS_REJECTED) {
+                return ['success' => false, 'error' => 'Ваш предыдущий отзыв был отклонён. Вы можете обратиться к администрации.'];
+            }
             return ['success' => false, 'error' => 'Вы уже оставили отзыв на этот товар.'];
         }
 
@@ -78,10 +84,20 @@ class ReviewController extends Controller
         $review->user_id = $uid;
         $review->rating = $rating;
         $review->text = $text;
+        $review->status = ProductReview::STATUS_PENDING;
 
-        if (!$review->save()) {
-            $errors = $review->getFirstErrors();
-            return ['success' => false, 'error' => reset($errors) ?: 'Ошибка сохранения.'];
+        try {
+            if (!$review->save()) {
+                $errors = $review->getFirstErrors();
+                return ['success' => false, 'error' => reset($errors) ?: 'Ошибка сохранения.'];
+            }
+        } catch (\Throwable $e) {
+            Yii::error('Review save error: ' . $e->getMessage(), 'review');
+            // Check if it's a duplicate key error
+            if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'uk_review') !== false) {
+                return ['success' => false, 'error' => 'Вы уже оставили отзыв на этот товар.'];
+            }
+            return ['success' => false, 'error' => 'Произошла ошибка при сохранении отзыва. Попробуйте позже.'];
         }
 
         // Return the new review data for JS rendering
@@ -89,13 +105,19 @@ class ReviewController extends Controller
         $displayName = $user->getDisplayName();
         $avatar = $user->getAvatarPath();
 
+        $createdAt = $review->created_at;
+        if ($createdAt === null || $createdAt === '') {
+            $createdAt = date('Y-m-d H:i:s');
+        }
+
         return [
             'success' => true,
+            'message' => 'Отзыв отправлен на модерацию.',
             'review' => [
                 'id' => $review->id,
                 'rating' => $review->rating,
                 'text' => $review->text,
-                'created_at' => date('d.m.Y H:i', strtotime($review->created_at)),
+                'created_at' => date('d.m.Y H:i', strtotime($createdAt)),
                 'user_name' => $displayName,
                 'user_avatar' => $avatar,
             ],

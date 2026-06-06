@@ -105,7 +105,6 @@ class SiteController extends Controller
             ->andWhere(['status' => Brand::STATUS_APPROVED])
             ->andWhere(['is_blocked' => 0])
             ->orderBy(['created_at' => SORT_DESC])
-            ->limit(5)
             ->all();
 
         return $this->render('index', [
@@ -517,7 +516,7 @@ class SiteController extends Controller
             ->limit(4)
             ->all();
 
-        // Reviews
+        // Reviews (only approved)
         $reviews = (new Query())
             ->select([
                 'r.id',
@@ -532,7 +531,7 @@ class SiteController extends Controller
             ])
             ->from(['r' => 'product_reviews'])
             ->leftJoin(['u' => 'users'], 'u.id = r.user_id')
-            ->where(['r.product_id' => (int) $id])
+            ->where(['r.product_id' => (int) $id, 'r.status' => 'approved'])
             ->orderBy(['r.created_at' => SORT_DESC])
             ->all();
 
@@ -685,10 +684,10 @@ class SiteController extends Controller
         $orders = [];
         try {
             $orders = (new Query())
-                ->select(['id', 'status', 'total', 'created_at'])
+                ->select(['id', 'status', 'total_price', 'created_at', 'payment_id', 'delivery_method'])
                 ->from('orders')
                 ->where(['user_id' => $uid])
-                ->orderBy(['created_at' => SORT_DESC])
+                ->orderBy(['id' => SORT_DESC])
                 ->all();
         } catch (\Throwable $e) {
             $orders = [];

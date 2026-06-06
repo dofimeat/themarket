@@ -449,27 +449,9 @@ JS
             .then(function(r){ return r.json(); })
             .then(function(d){
                 if (d.success) {
-                    // Hide form, show success
-                    form.closest('.review-form-wrap').innerHTML = '<div class="alert alert-success">Спасибо за ваш отзыв!</div>';
-
-                    // Prepend new review to list
-                    var rv = d.review;
-                    var list = document.getElementById('reviews-list');
-                    var card = document.createElement('div');
-                    card.className = 'review-card';
-
-                    var starsHtml = '';
-                    for (var i = 1; i <= 5; i++) {
-                        starsHtml += '<span class="review-star ' + (i <= rv.rating ? 'review-star--filled' : '') + '">\u2605</span>';
-                    }
-
-                    card.innerHTML = '<div class="review-card-header">' +
-                        '<img src="' + (rv.user_avatar ? '<?= Url::to('@web/') ?>' + rv.user_avatar : '<?= Url::to('@web/' . \app\models\User::DEFAULT_AVATAR) ?>') + '" alt="" class="review-avatar">' +
-                        '<div class="review-meta"><div class="review-author">' + rv.user_name + '</div><div class="review-date">' + rv.created_at + '</div></div>' +
-                        '<div class="review-card-stars">' + starsHtml + '</div></div>' +
-                        '<div class="review-text">' + rv.text.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</div>';
-
-                    list.insertBefore(card, list.firstChild);
+                    // Hide form, show moderation message
+                    var msg = d.message || 'Спасибо за ваш отзыв! Он будет опубликован после проверки.';
+                    form.closest('.review-form-wrap').innerHTML = '<div class="alert alert-success">' + msg + '</div>';
                 } else {
                     btn.disabled = false;
                     btn.textContent = 'Отправить отзыв';

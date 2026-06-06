@@ -21,12 +21,34 @@ class LoginForm extends Model
         return [
             [['email', 'password'], 'required'],
             ['email', 'trim'],
-            ['email', 'email', 'when' => function ($model) {
-                return strpos((string) $model->email, '@') !== false;
-            }],
+            ['email', 'validateLogin'],
             ['rememberMe', 'boolean'],
             ['password', 'validatePassword'],
         ];
+    }
+
+    /**
+     * Custom validator for login (email or username).
+     */
+    public function validateLogin($attribute, $params)
+    {
+        if ($this->hasErrors()) {
+            return;
+        }
+
+        $value = (string) $this->$attribute;
+        
+        // If contains @, validate as email
+        if (strpos($value, '@') !== false) {
+            if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                $this->addError($attribute, 'Некорректный формат email.');
+            }
+        } else {
+            // Treat as username - just check length
+            if (strlen($value) < 2) {
+                $this->addError($attribute, 'Логин должен содержать минимум 2 символа.');
+            }
+        }
     }
 
     public function attributeLabels()
